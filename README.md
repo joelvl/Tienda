@@ -16,6 +16,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
 | `scripts/crear-usuario.mjs` | Opcional: crea usuarios desde la terminal. |
+| `scripts/cargar-fotos.mjs` | Opcional: sube una carpeta de fotos como prendas de una compra; la IA saca tipo, color, nombre, talla y precio de cada foto. |
 | `publico/` | Íconos y manifiesto para instalar la tienda en la pantalla de inicio del celular. |
 
 ## Puesta en marcha (se hace una sola vez)
