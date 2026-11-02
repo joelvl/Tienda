@@ -9,6 +9,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
+| `supabase/migrations/…_clientes.sql` | Clientes (nombre y teléfono; el teléfono es la llave), el cliente de cada venta y permisos para borrar. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
@@ -85,3 +86,6 @@ SUPABASE_SERVICE_ROLE_KEY=... \
 node scripts/crear-usuario.mjs mama SuClave123
 ```
 La llave *service_role* da acceso total: úsela solo en su computadora y nunca la suba a GitHub.
+
+## Clientes
+Al guardar una venta se puede elegir el cliente (o agregar uno nuevo con su nombre y teléfono). El teléfono no se repite: es lo que identifica al cliente. En **Ajustes → Clientes** se ve lo que ha comprado cada uno, se le cambia el nombre o se borra; sus compras se quedan como vendidas, pero sin cliente.
