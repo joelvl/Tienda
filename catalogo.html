@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catálogo</title>
+<meta name="description" content="Prendas disponibles">
+<!--MI_TIENDA_CONFIG-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700&display=swap">
+<style>
+/* Catálogo para clientes: solo lo que está a la venta, sin costos ni ganancias. */
+:root{
+  --fondo:#EFEDF6; --superficie:#FFFFFF; --superficie-2:#F6F5FA; --tinta:#221F3B; --tinta-suave:#5B5775; --linea:#D8D4E6;
+  --marca:#C92A62; --marca-tinta:#FFFFFF; --marca-suave:#FBE4ED;
+  --gana:#0A7A52; --gana-tinta:#FFFFFF;
+  --foco:#2F54EB;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+    --marca:#FF6B9C; --marca-tinta:#1B1020; --marca-suave:#3B1D2B;
+    --gana:#48D597; --gana-tinta:#0B1F16;
+    --foco:#8EA8FF;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+  --marca:#FF6B9C; --marca-tinta:#1B1020; --marca-suave:#3B1D2B;
+  --gana:#48D597; --gana-tinta:#0B1F16;
+  --foco:#8EA8FF;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:18px;line-height:1.4}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
+.cab{background:var(--superficie);border-bottom:1px solid var(--linea);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px}
+.cab-in,.contenido{max-width:1100px;margin:0 auto}
+.marca{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--marca);color:var(--marca-tinta);display:grid;place-items:center;flex:none}
+.logo svg{width:26px;height:26px}
+h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
+.sub{margin:2px 0 0;color:var(--tinta-suave);font-size:16px}
+.contenido{padding:16px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+.buscar{width:100%;min-height:52px;border:2px solid var(--linea);border-radius:14px;background:var(--superficie);padding:0 16px}
+.buscar:focus{border-color:var(--marca);outline:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;appearance:none;min-height:44px;padding:0 16px;border-radius:999px;border:2px solid var(--linea);background:var(--superficie);cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--tinta);color:var(--fondo);border-color:var(--tinta);font-weight:700}
+.etq{font-size:15px;color:var(--tinta-suave);margin:10px 0 0}
+.cuenta{color:var(--tinta-suave);margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+@media (min-width:700px){.grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}}
+.prenda{background:var(--superficie);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.foto{aspect-ratio:1;background:var(--superficie-2);display:grid;place-items:center;color:var(--tinta-suave)}
+.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto svg{width:48px;height:48px}
+.info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
+.precio{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.nombre{font-weight:700;overflow-wrap:anywhere}
+.meta{color:var(--tinta-suave);font-size:15px}
+.quiero{margin-top:auto;padding-top:10px}
+.btn{appearance:none;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;border-radius:12px;border:0;background:var(--gana);color:var(--gana-tinta);font-weight:700;text-decoration:none;cursor:pointer;text-align:center;padding:0 10px}
+.btn svg{width:20px;height:20px;flex:none}
+.vacio{background:var(--superficie);border-radius:16px;padding:24px;text-align:center;color:var(--tinta-suave)}
+.mas{margin:20px auto 0;max-width:360px;background:var(--superficie);color:var(--tinta);border:2px solid var(--linea)}
+.girando{display:inline-block;width:20px;height:20px;border:3px solid var(--linea);border-top-color:var(--marca);border-radius:50%;animation:gira .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.girando{animation:none}}
+</style>
+</head>
+<body>
+<header class="cab"><div class="cab-in marca">
+  <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/></svg></span>
+  <div><h1 id="nombre">Catálogo</h1><p class="sub" id="sub">Prendas disponibles</p></div>
+</div></header>
+<main class="contenido">
+  <input id="q" class="buscar" type="search" autocomplete="off" placeholder="Buscar: blusa, roja, talla M…" aria-label="Buscar prendas">
+  <div class="chips" id="tipos" role="group" aria-label="Tipo de prenda"></div>
+  <div id="zonaTallas" hidden><p class="etq">Talla</p><div class="chips" id="tallas" role="group" aria-label="Talla"></div></div>
+  <p class="cuenta" id="cuenta" aria-live="polite"><span class="girando" aria-hidden="true"></span>Cargando prendas…</p>
+  <div class="grid" id="grid"></div>
+  <div id="pie"></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const col = n => '₡' + new Intl.NumberFormat('es-CR', { maximumFractionDigits: 0 }).format(n || 0);
+const normal = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const PERCHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2c0 1-2 1.5-2 3l9 7.5a1 1 0 0 1-.6 1.8H3.6a1 1 0 0 1-.6-1.8L12 8"/></svg>';
+const WA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>';
+const POR_PAGINA = 48;
+const E = { prendas: [], tienda: { nombre: 'Catálogo', whatsapp: '' }, tipo: '', talla: '', q: '', mostrar: POR_PAGINA, fotos: new Map(), pedidas: new Set() };
+
+async function rpc(nombre, cuerpo) {
+  const cfg = window.MI_TIENDA_CONFIG;
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) throw new Error('sin configuración');
+  const h = { apikey: cfg.supabaseAnonKey, 'Content-Type': 'application/json' };
+  if (cfg.supabaseAnonKey.startsWith('eyJ')) h.Authorization = 'Bearer ' + cfg.supabaseAnonKey;   // llave anon de proyectos viejos
+  const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${nombre}`, { method: 'POST', headers: h, body: JSON.stringify(cuerpo || {}) });
+  if (!r.ok) throw new Error(`${nombre}: ${r.status}`);
+  return r.json();
+}
+const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return d.length === 8 ? '506' + d : d; };
+function enlaceQuiero(p) {
+  const tel = telWhatsApp(E.tienda.whatsapp);
+  if (!tel) return '';
+  const texto = `¡Hola! Me interesa esta prenda del catálogo: ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ''}, ${col(p.precio)} (código ${p.codigo}). ¿Todavía está disponible?`;
+  return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
+}
+const meta = p => [p.talla ? 'Talla ' + p.talla : '', p.color].filter(Boolean).join(' · ');
+function filtradas() {
+  const nq = normal(E.q);
+  return E.prendas.filter(p => (!E.tipo || p.tipo === E.tipo) && (!E.talla || p.talla === E.talla)
+    && (!nq || nq.split(/\s+/).every(w => normal([p.descripcion, p.tipo, p.color, p.talla, 'talla ' + p.talla, p.codigo].join(' ')).includes(w))));
+}
+function chips(cont, valores, actual, campo) {
+  cont.innerHTML = [['', 'Todo'], ...valores.map(v => [v, v])].map(([v, t]) => `<button type="button" class="chip" data-${campo}="${esc(v)}" aria-pressed="${v === actual}">${esc(t)}</button>`).join('');
+}
+function pintar() {
+  const cuentaTipo = new Map();
+  for (const p of E.prendas) cuentaTipo.set(p.tipo, (cuentaTipo.get(p.tipo) || 0) + 1);
+  chips($('#tipos'), [...cuentaTipo.keys()].sort((a, b) => cuentaTipo.get(b) - cuentaTipo.get(a)), E.tipo, 'tipo');
+  const tallas = [...new Set(E.prendas.filter(p => !E.tipo || p.tipo === E.tipo).map(p => p.talla).filter(Boolean))]
+    .sort((a, b) => (parseFloat(a) || 999) - (parseFloat(b) || 999) || a.localeCompare(b, 'es'));
+  if (E.talla && !tallas.includes(E.talla)) E.talla = '';
+  $('#zonaTallas').hidden = tallas.length < 2;
+  chips($('#tallas'), tallas, E.talla, 'talla');
+  const lista = filtradas();
+  $('#cuenta').textContent = !E.prendas.length ? '' : lista.length === 1 ? '1 prenda' : `${lista.length} prendas`;
+  if (!E.prendas.length) { $('#grid').innerHTML = ''; $('#pie').innerHTML = '<div class="vacio">Por ahora no hay prendas a la venta. Vuelva pronto.</div>'; return; }
+  if (!lista.length) { $('#grid').innerHTML = ''; $('#pie').innerHTML = '<div class="vacio">No hay prendas con esa búsqueda.</div>'; return; }
+  $('#grid').innerHTML = lista.slice(0, E.mostrar).map(p => {
+    const f = E.fotos.get(p.codigo), wa = enlaceQuiero(p);
+    return `<article class="prenda">
+      <div class="foto" data-codigo="${esc(p.conFoto ? p.codigo : '')}">${f ? `<img src="${f}" alt="${esc(p.descripcion)}">` : PERCHA}</div>
+      <div class="info"><span class="precio">${col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
+        <span class="meta">${esc(meta(p))}</span><span class="meta">Código ${esc(p.codigo)}</span>
+        ${wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener">${WA} La quiero</a></div>` : ''}</div>
+    </article>`;
+  }).join('');
+  $('#pie').innerHTML = lista.length > E.mostrar ? `<button type="button" class="btn mas" id="verMas">Ver más prendas (${lista.length - E.mostrar})</button>` : '';
+  observarFotos();
+}
+
+// Fotos: se piden por tandas solo cuando la tarjeta está por aparecer en pantalla
+let obs = null, cola = new Set(), timer = 0;
+function observarFotos() {
+  if (obs) obs.disconnect();
+  const pend = [...document.querySelectorAll('.foto[data-codigo]')].filter(el => el.dataset.codigo && !E.fotos.has(el.dataset.codigo));
+  if (!pend.length) return;
+  if (!('IntersectionObserver' in window)) { pend.forEach(el => pedirFoto(el.dataset.codigo)); return; }
+  obs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { obs.unobserve(e.target); pedirFoto(e.target.dataset.codigo); } }), { rootMargin: '400px 0px' });
+  pend.forEach(el => obs.observe(el));
+}
+function pedirFoto(c) {
+  if (E.pedidas.has(c)) return;
+  E.pedidas.add(c); cola.add(c);
+  clearTimeout(timer); timer = setTimeout(traerFotos, 60);
+}
+async function traerFotos() {
+  const codigos = [...cola].slice(0, 30);
+  codigos.forEach(c => cola.delete(c));
+  if (cola.size) timer = setTimeout(traerFotos, 60);
+  try {
+    const filas = await rpc('catalogo_fotos', { codigos });
+    for (const { codigo, foto } of filas) {
+      if (!foto) continue;
+      E.fotos.set(codigo, foto);
+      const el = document.querySelector(`.foto[data-codigo="${CSS.escape(codigo)}"]`);
+      const p = E.prendas.find(x => x.codigo === codigo);
+      if (el) el.innerHTML = `<img src="${foto}" alt="${esc(p ? p.descripcion : '')}">`;
+    }
+  } catch (e) { codigos.forEach(c => E.pedidas.delete(c)); console.warn(e); }
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tipo],[data-talla],#verMas');
+  if (!t) return;
+  if (t.id === 'verMas') { E.mostrar += POR_PAGINA; pintar(); return; }
+  if (t.dataset.tipo !== undefined) { E.tipo = t.dataset.tipo; E.talla = ''; }
+  else E.talla = t.dataset.talla;
+  E.mostrar = POR_PAGINA; pintar();
+});
+let tq = 0;
+$('#q').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { E.q = e.target.value; E.mostrar = POR_PAGINA; pintar(); }, 150); });
+
+async function iniciar() {
+  try {
+    const d = await rpc('catalogo_lista');
+    E.tienda = { ...E.tienda, ...(d.tienda || {}) };
+    E.prendas = Array.isArray(d.prendas) ? d.prendas : [];
+    document.title = `${E.tienda.nombre} · Catálogo`;
+    $('#nombre').textContent = E.tienda.nombre || 'Catálogo';
+    $('#sub').textContent = telWhatsApp(E.tienda.whatsapp) ? 'Toque «La quiero» y le escribimos por WhatsApp' : 'Prendas disponibles';
+    pintar();
+  } catch (e) {
+    console.warn(e);
+    $('#cuenta').textContent = '';
+    $('#pie').innerHTML = '<div class="vacio">No se pudo cargar el catálogo. Revise el internet y vuelva a abrir el enlace.</div>';
+  }
+}
+iniciar();
+</script>
+</body>
+</html>

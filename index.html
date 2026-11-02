@@ -66,7 +66,7 @@ b,strong{font-weight:700}
 .ico{width:24px;height:24px;flex:none}
 
 /* navegación */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tab{position:relative;appearance:none;border:0;background:none;color:var(--tinta-suave);font:inherit;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:66px;padding:8px 2px;cursor:pointer}
 .tab .ico{width:26px;height:26px}
 .tab[aria-current="page"]{color:var(--marca);font-weight:700}
@@ -107,6 +107,7 @@ input:focus,select:focus{border-color:var(--foco)}
 .nota{font-size:16px;color:var(--tinta-suave)}
 .intro{color:var(--tinta-suave);max-width:60ch}
 .mt{margin-top:10px}
+.mb{margin-bottom:14px}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dos .campo{margin:8px 0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -230,6 +231,15 @@ th{font-size:15px;color:var(--tinta-suave)}
 .cifras div{background:var(--superficie);border-radius:12px;padding:10px 14px}
 .cifras dt{font-size:15px;color:var(--tinta-suave)}
 .cifras dd{margin:0;font-size:24px;font-weight:700}
+/* ---------- clientes ---------- */
+.fila-cliente{appearance:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tinta);background:var(--superficie);border:2px solid transparent;border-radius:14px;padding:12px 14px;margin:8px 0;cursor:pointer}
+.fila-cliente b{font-size:19px;overflow-wrap:anywhere}
+.fila-cliente .fc-total{font-size:20px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.fila-cliente .nota{grid-column:1/-1}
+.venta-cliente{background:var(--superficie);border-radius:14px;padding:12px 14px;margin:10px 0}
+.venta-cliente .vc-cab{display:flex;justify-content:space-between;gap:10px;font-weight:700;margin-bottom:6px}
+.venta-cliente ul{margin:0;padding-left:20px}
+.tels-contacto{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .detalle-foto{display:block;width:100%;max-height:300px;object-fit:contain;border-radius:14px;background:var(--superficie-2);margin-bottom:12px}
 .codigo{font-size:15px;color:var(--tinta-suave);margin:0}
 .venta-cab{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center}
@@ -271,6 +281,7 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 .accion-fija{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom,0px));background:var(--fondo);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px;z-index:3}
 @media (min-width:700px){.accion-fija{bottom:-24px;padding-bottom:12px}}
 @media (hover:hover){
+  .fila-cliente:hover{border-color:var(--tinta-suave)}
   .btn-sec:hover,.chip:hover,.compra:hover{border-color:var(--tinta-suave)}
   .tag:hover .precio{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
 }
@@ -588,6 +599,7 @@ const ICON = {
   tienda: svg('<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9.5 20v-6h5v6"/>'),
   salir: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'),
   mas: svg('<path d="M12 5v14M5 12h14"/>'),
+  compartir: svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'),
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
 };
 
@@ -608,7 +620,7 @@ const TAMANOS = {
   '51x25': { w: 50.8, h: 25.4, nombre: '2 × 1 pulgadas' },
 };
 const PRECIOS_RAPIDOS = [1900, 2900, 3900, 4900, 5900, 6900, 7900, 9900];
-const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick' };
+const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick', whatsapp: '' };
 const PXMM = 16;
 function tallasPara(tipo) {
   if (tipo === 'Zapatos') return ['34', '35', '36', '37', '38', '39', '40', '41'];
@@ -663,7 +675,7 @@ const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
-const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa'];
+const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa', 'whatsapp'];
 const tomar = (o, campos) => { const r = {}; for (const k of campos) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
 // Dentro de Claude: base de datos compartida del artifact
@@ -1057,6 +1069,7 @@ const TABS = [
   { id: 'vender', txt: 'Vender', ico: 'etiqueta' },
   { id: 'prendas', txt: 'Prendas', ico: 'percha' },
   { id: 'compras', txt: 'Compras', ico: 'bolsa' },
+  { id: 'clientes', txt: 'Clientes', ico: 'persona' },
 ];
 function ir(v) {
   vista = v;
@@ -2294,6 +2307,7 @@ function abrirClientes(paraVenta) {
   abrirHoja(`<h2>${paraVenta ? '¿A quién le vende?' : 'Clientes'}</h2>
     <div class="campo"><label for="qCliente">Buscar por nombre o teléfono</label><input id="qCliente" type="search" autocomplete="off" placeholder="Ej: María o 8888 8888"></div>
     <button type="button" class="btn btn-marca btn-enorme" data-accion="cliente-nuevo">${ICON.mas} Cliente nuevo</button>
+    ${paraVenta && hayContactos() ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="contacto-a-venta">${ICON.persona} Elegir de mis contactos</button>` : ''}
     ${paraVenta && clienteVenta ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="cliente-ninguno">Vender sin cliente</button>` : ''}
     <div id="listaClientes" class="mt"></div>`, null, paraVenta ? 'Elegir cliente' : 'Clientes');
   hojaCtx.paraVenta = !!paraVenta;
@@ -2321,6 +2335,7 @@ function abrirFormCliente(x0, paraVenta) {
   const nuevo = !x0;
   const q = soloDigitos(($('#qCliente') || {}).value);
   abrirHoja(`<h2>${nuevo ? 'Cliente nuevo' : 'Cambiar nombre del cliente'}</h2>
+    ${nuevo && hayContactos() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="contacto-a-form">${ICON.persona} Tomar nombre y teléfono de mis contactos</button><div id="telsContacto"></div>` : ''}
     <div class="campo"><label for="cNombre">Nombre</label><input id="cNombre" autocomplete="off" maxlength="60" value="${esc(x0 ? x0.nombre : '')}" placeholder="Ej: María Rodríguez"></div>
     <div class="campo"><label for="cTel">Teléfono</label><input id="cTel" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(x0 ? telBonito(x0.telefono) : q)}" placeholder="Ej: 8888 8888" ${nuevo ? '' : 'disabled'}>
       ${nuevo ? '' : '<p class="nota mt">El teléfono no se puede cambiar. Si cambió de número, agréguelo como cliente nuevo.</p>'}</div>
@@ -2345,22 +2360,144 @@ async function guardarCliente(btn) {
   if (ctx.paraVenta) { ponerClienteVenta(telefono); toast(`Venta para ${nombre}.`, 'bien'); }
   else toast(ctx.cliente ? 'Cliente guardado.' : 'Cliente agregado.', 'bien');
 }
+function statsCliente(tel) {
+  const vs = comprasDeCliente(tel);
+  const ventas = new Set(vs.map(p => p.ventaId || p.id)).size;
+  return { prendas: vs.length, ventas, gasto: suma(vs, p => p.precioVenta), ultima: vs.length ? Math.max(...vs.map(p => p.fechaVenta)) : 0 };
+}
+const filtroClientes = { q: '', orden: 'gasto' };
+function pintarVistaClientes() {
+  const cont = $('#listaVistaClientes');
+  if (!cont) return;
+  const todos = S.clientes.map(x => ({ x, st: statsCliente(x.telefono) }));
+  $('#cifrasClientes').innerHTML = `<div><dt>Clientes</dt><dd>${nf.format(todos.length)}</dd></div>
+    <div><dt>Le han comprado</dt><dd>${col(suma(todos, c => c.st.gasto))}</dd></div>`;
+  $$('[data-accion="orden-clientes"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valor === filtroClientes.orden)));
+  const lista = todos.filter(c => coincideCliente(c.x, filtroClientes.q))
+    .sort(filtroClientes.orden === 'nombre' ? (a, b) => a.x.nombre.localeCompare(b.x.nombre, 'es') : (a, b) => b.st.gasto - a.st.gasto || b.st.ultima - a.st.ultima);
+  if (!todos.length) { cont.innerHTML = '<div class="vacio mt"><p><b>Todavía no hay clientes.</b></p><p>Agréguelos aquí o al guardar una venta.</p></div>'; return; }
+  if (!lista.length) { cont.innerHTML = `<div class="vacio mt"><p>No hay clientes con “${esc(filtroClientes.q)}”.</p></div>`; return; }
+  cont.innerHTML = lista.slice(0, 200).map(({ x, st }) => `<button type="button" class="fila-cliente" data-accion="ver-cliente" data-id="${esc(x.telefono)}">
+      <b>${esc(x.nombre)}</b><span class="fc-total">${col(st.gasto)}</span>
+      <span class="nota">Tel. ${esc(telBonito(x.telefono))} · ${st.prendas ? `${plural(st.prendas, 'prenda', 'prendas')} en ${plural(st.ventas, 'compra', 'compras')} · la última ${hace(st.ultima)}` : 'todavía no ha comprado'}</span>
+    </button>`).join('') + (lista.length > 200 ? `<p class="nota">y ${lista.length - 200} más. Escriba para buscar.</p>` : '');
+}
+const enlaceWhatsApp = t => `https://wa.me/${t.length === 8 ? '506' + t : t}`;
+
+// Catálogo para clientes (catalogo.html): solo existe en la versión publicada con Supabase
+const hayCatalogo = () => S.modo === 'supabase';
+const urlCatalogo = () => new URL('catalogo.html', location.href).href;
+const textoCatalogo = nombre => `¡Hola${nombre ? ' ' + nombre.split(' ')[0] : ''}! Estas son las prendas que tengo a la venta en ${S.config.nombre || 'la tienda'}: ${urlCatalogo()}`;
+async function compartirCatalogo() {
+  if (!S.config.whatsapp) toast('Consejo: ponga el WhatsApp de la tienda en Ajustes para que los clientes le escriban desde el catálogo.');
+  const texto = textoCatalogo('');
+  if (navigator.share) {
+    try { await navigator.share({ title: S.config.nombre || 'Catálogo', text: texto }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(texto); toast('Enlace del catálogo copiado. Péguelo en WhatsApp.', 'bien'); }
+  catch (e) { window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener'); }
+}
 function abrirCliente(tel) {
   const x = clientePorTel(tel);
   if (!x) return;
-  const vs = comprasDeCliente(tel).sort((a, b) => b.fechaVenta - a.fechaVenta);
+  const vs = comprasDeCliente(tel);
+  const st = statsCliente(tel);
+  // agrupa por venta: lo que se llevó cada vez
+  const grupos = new Map();
+  for (const p of vs) { const k = p.ventaId || p.id; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(p); }
+  const ventas = [...grupos.values()].map(ps => ({ ps, fecha: ps[0].fechaVenta, total: suma(ps, p => p.precioVenta) })).sort((a, b) => b.fecha - a.fecha);
   abrirHoja(`<h2>${esc(x.nombre)}</h2>
-    <p class="nota">Teléfono ${esc(telBonito(x.telefono))}</p>
+    <p class="nota">Teléfono ${esc(telBonito(x.telefono))}${st.prendas ? ` · cliente desde el ${fCorta.format(Math.min(...vs.map(p => p.fechaVenta)))}` : ''}</p>
     <dl class="cifras">
-      <div><dt>Prendas compradas</dt><dd>${nf.format(vs.length)}</dd></div>
-      <div><dt>Ha gastado</dt><dd>${col(suma(vs, p => p.precioVenta))}</dd></div>
+      <div><dt>Ha gastado</dt><dd>${col(st.gasto)}</dd></div>
+      <div><dt>Compras</dt><dd>${nf.format(st.ventas)}</dd></div>
+      <div><dt>Prendas</dt><dd>${nf.format(st.prendas)}</dd></div>
+      ${st.ventas ? `<div><dt>Gasta por compra</dt><dd>${col(Math.round(st.gasto / st.ventas))}</dd></div>` : ''}
     </dl>
-    ${vs.length ? `<h3 class="grupo-sel">Lo que ha comprado</h3>${vs.slice(0, 30).map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
-      <span><b>${esc(p.descripcion)}</b><br><span class="nota">${col(p.precioVenta)}, el ${fCorta.format(p.fechaVenta)}</span></span></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
+    ${ventas.length ? `<h3 class="grupo-sel">Lo que ha comprado</h3>${ventas.slice(0, 40).map(v => `<div class="venta-cliente">
+      <div class="vc-cab"><span>${esc(fLarga.format(v.fecha))}</span><span>${col(v.total)}</span></div>
+      <ul>${v.ps.map(p => `<li>${esc(p.descripcion)}${p.talla ? `, talla ${esc(p.talla)}` : ''}: ${col(p.precioVenta)}</li>`).join('')}</ul></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
     <div class="botones-hoja">
+      ${hayCatalogo() ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(x.telefono)}?text=${encodeURIComponent(textoCatalogo(x.nombre))}" target="_blank" rel="noopener">${ICON.compartir} Enviarle el catálogo por WhatsApp</a>` : ''}
+      <a class="btn ${hayCatalogo() ? 'btn-sec' : 'btn-gana'} btn-enorme" href="${enlaceWhatsApp(x.telefono)}" target="_blank" rel="noopener">Escribirle por WhatsApp</a>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-cliente" data-id="${esc(x.telefono)}">Cambiar nombre</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-cliente" data-id="${esc(x.telefono)}">Borrar cliente</button>
     </div>`, null, x.nombre);
+}
+
+// Contactos del teléfono (Chrome en Android). Se toma el nombre y el número.
+const hayContactos = () => !!(navigator.contacts && navigator.contacts.select && window.isSecureContext);
+function telDeContacto(t) {
+  let d = soloDigitos(t);
+  if (d.length === 11 && d.startsWith('506')) d = d.slice(3);   // +506 de Costa Rica
+  return d;
+}
+// primero los celulares (en Costa Rica empiezan con 5, 6, 7 u 8)
+const esCelular = t => /^[5-8]\d{7}$/.test(t);
+const telsValidos = c => [...new Set((c.tel || []).map(telDeContacto))].filter(t => t.length >= 8 && t.length <= 15).sort((a, b) => esCelular(b) - esCelular(a));
+const nombreDeContacto = c => String((c.name || [])[0] || '').trim().slice(0, 60);
+async function elegirContactos(multiple) {
+  try { return await navigator.contacts.select(['name', 'tel'], { multiple }); }
+  catch (e) { console.warn('Contactos', e); toast('No se pudieron abrir los contactos.', 'mal'); return null; }
+}
+async function contactoAlFormulario() {
+  const r = await elegirContactos(false);
+  if (!r || !r[0] || !$('#cNombre')) return;
+  const nombre = nombreDeContacto(r[0]), tels = telsValidos(r[0]);
+  if (nombre) $('#cNombre').value = nombre;
+  if (!tels.length) { toast('Ese contacto no tiene un teléfono que sirva. Escríbalo.', 'mal'); return; }
+  $('#cTel').value = telBonito(tels[0]);
+  $('#telsContacto').innerHTML = tels.length > 1 ? `<p class="nota mt">Tiene ${tels.length} números. ¿Cuál es?</p><div class="tels-contacto">${tels.map((t, i) => `<button type="button" class="chip" data-accion="tel-contacto" data-valor="${t}" aria-pressed="${i === 0}">${telBonito(t)}</button>`).join('')}</div>` : '';
+}
+async function contactoAVenta() {
+  const r = await elegirContactos(false);
+  if (!r || !r[0]) return;
+  const nombre = nombreDeContacto(r[0]), tels = telsValidos(r[0]);
+  const ya = tels.map(clientePorTel).find(Boolean);
+  if (ya) { cerrarHoja(); ponerClienteVenta(ya.telefono); toast(`Venta para ${ya.nombre}.`, 'bien'); return; }
+  if (!nombre || tels.length !== 1) {   // falta algo o hay que escoger número: que lo revise en el formulario
+    abrirFormCliente(null, true);
+    if (nombre) $('#cNombre').value = nombre;
+    if (tels.length) { $('#cTel').value = telBonito(tels[0]); $('#telsContacto').innerHTML = tels.length > 1 ? `<p class="nota mt">Tiene ${tels.length} números. ¿Cuál es?</p><div class="tels-contacto">${tels.map((t, i) => `<button type="button" class="chip" data-accion="tel-contacto" data-valor="${t}" aria-pressed="${i === 0}">${telBonito(t)}</button>`).join('')}</div>` : ''; }
+    return;
+  }
+  const x = { telefono: tels[0], nombre, creada: Date.now() };
+  if (await escribir(() => backend.ponerCliente(x))) { cerrarHoja(); ponerClienteVenta(x.telefono); toast(`Cliente agregado. Venta para ${nombre}.`, 'bien'); }
+}
+async function importarContactos() {
+  const r = await elegirContactos(true);
+  if (!r || !r.length) return;
+  const nuevos = [], vistos = new Set();
+  let yaEstaban = 0, sinTel = 0;
+  for (const c of r) {
+    const nombre = nombreDeContacto(c), tels = telsValidos(c);
+    if (!nombre || !tels.length) { sinTel++; continue; }
+    if (tels.some(t => clientePorTel(t))) { yaEstaban++; continue; }
+    if (vistos.has(tels[0])) continue;
+    vistos.add(tels[0]);
+    nuevos.push({ telefono: tels[0], nombre, creada: Date.now() });
+  }
+  const notas = [yaEstaban ? `${plural(yaEstaban, 'ya estaba', 'ya estaban')} en sus clientes` : '', sinTel ? `${plural(sinTel, 'no tiene', 'no tienen')} nombre o teléfono` : ''].filter(Boolean).join(' y ');
+  if (!nuevos.length) { toast(`No hay clientes nuevos para agregar${notas ? ': ' + notas : ''}.`); return; }
+  abrirHoja(`<h2>Agregar ${plural(nuevos.length, 'cliente', 'clientes')}</h2>
+    ${notas ? `<p class="nota">De los que eligió, ${notas}.</p>` : ''}
+    <div class="lista-sel">${nuevos.map(x => `<div class="opcion-sel"><span class="os-texto"><b>${esc(x.nombre)}</b><span class="nota">${esc(telBonito(x.telefono))}</span></span></div>`).join('')}</div>
+    <p class="resultado" id="avanceContactos" aria-live="polite"></p>
+    <div class="botones-hoja">
+      <button type="button" class="btn btn-gana btn-enorme" id="siContactos">Agregar ${plural(nuevos.length, 'cliente', 'clientes')}</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Cancelar</button>
+    </div>`, el => {
+      $('#siContactos', el).onclick = async e => {
+        e.currentTarget.disabled = true;
+        const av = $('#avanceContactos', el);
+        for (let i = 0; i < nuevos.length; i++) {
+          if (!(await escribir(() => backend.ponerCliente(nuevos[i])))) { e.currentTarget.disabled = false; return; }
+          av.textContent = `Agregando… ${i + 1} de ${nuevos.length}`;
+        }
+        cerrarHoja(); toast(`${plural(nuevos.length, 'cliente agregado', 'clientes agregados')}.`, 'bien');
+      };
+    }, 'Agregar clientes');
 }
 
 /* ================= DETALLE Y EDICIÓN DE PRENDA ================= */
@@ -2553,13 +2690,14 @@ function abrirAjustes() {
     <div class="campo"><label for="aIa">Reconocimiento de fotos</label><select id="aIa">
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
+    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">En el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
       <button type="button" data-accion="tema" data-valor="oscuro" aria-pressed="${temaActual() === 'oscuro'}">Oscura</button></div></div>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-ajustes">Guardar ajustes</button>
-      <button type="button" class="btn btn-sec btn-enorme" data-accion="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-ir="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-prueba">${ICON.impresora} Imprimir etiqueta de prueba</button>
       ${puedeDescargar() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="exportar">Descargar mis datos para Excel</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="respaldo">Descargar respaldo completo</button>` : ''}
@@ -2570,7 +2708,9 @@ function abrirAjustes() {
 }
 async function guardarAjustes(btn) {
   const factor = Math.max(1, num($('#aFactor').value) / 1000 || 2.5);
-  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value };
+  const wa = telDeContacto($('#aWa').value);
+  if (wa && (wa.length < 8 || wa.length > 15)) { toast('Escriba el WhatsApp completo (8 números) o déjelo vacío.', 'mal'); $('#aWa').focus(); return; }
+  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value, whatsapp: telDeContacto($('#aWa').value) };
   btn.disabled = true;
   const ok = await escribir(() => backend.ponerConfig(cfg));
   btn.disabled = false;
@@ -2722,6 +2862,7 @@ const VISTAS = {
   prendas: {
     mount(el) {
       el.innerHTML = `<h1>Mis prendas</h1>
+        ${hayCatalogo() ? `<button type="button" class="btn btn-sec btn-enorme mb" data-accion="compartir-catalogo">${ICON.compartir} Compartir catálogo con clientes</button>` : ''}
         <div class="segmento" role="group" aria-label="Qué prendas mostrar">
           <button type="button" data-estado="disponible"></button>
           <button type="button" data-estado="vendida"></button>
@@ -2751,6 +2892,24 @@ const VISTAS = {
         + (viejas.length || filtro.viejas ? `<div class="chips mt"><button type="button" class="chip" data-accion="alternar-viejas" aria-pressed="${filtro.viejas}">Solo las de más de 30 días (${viejas.length})</button></div>` : '');
       pintarListaPrendas();
     },
+  },
+  clientes: {
+    mount(el) {
+      el.innerHTML = `<h1>Clientes</h1>
+        <div class="botones-clientes">
+          <button type="button" class="btn btn-marca btn-enorme" data-accion="cliente-nuevo">${ICON.mas} Cliente nuevo</button>
+          ${hayContactos() ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="importar-contactos">${ICON.persona} Agregar desde mis contactos</button>` : ''}
+          ${hayCatalogo() ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="compartir-catalogo">${ICON.compartir} Compartir catálogo</button>` : ''}
+        </div>
+        <dl class="cifras" id="cifrasClientes"></dl>
+        <div class="segmento dos-op" role="group" aria-label="Ordenar clientes">
+          <button type="button" data-accion="orden-clientes" data-valor="gasto">Los que más compran</button>
+          <button type="button" data-accion="orden-clientes" data-valor="nombre">Por nombre</button>
+        </div>
+        <div class="campo mt"><label for="qClientes" class="sr">Buscar clientes</label><input id="qClientes" type="search" autocomplete="off" placeholder="Buscar por nombre o teléfono" value="${esc(filtroClientes.q)}"></div>
+        <div id="listaVistaClientes"></div>`;
+    },
+    update() { pintarVistaClientes(); },
   },
   compras: {
     mount(el) {
@@ -2904,12 +3063,17 @@ document.addEventListener('click', async e => {
     case 'marcar-impresas': if (hojaCtx && hojaCtx.lista) { el.disabled = true; await marcarImpresas(hojaCtx.lista); } break;
     case 'editar-prenda': abrirEditar(id); break;
     case 'guardar-edicion': guardarEdicion(id, el); break;
-    case 'clientes': abrirClientes(false); break;
     case 'elegir-cliente': abrirClientes(true); break;
     case 'cliente-nuevo': abrirFormCliente(null, hojaCtx && hojaCtx.paraVenta); break;
     case 'cliente-ninguno': cerrarHoja(); ponerClienteVenta(''); break;
     case 'cliente-a-venta': { const x = clientePorTel(id); cerrarHoja(); ponerClienteVenta(id); if (x) toast(`Venta para ${x.nombre}.`, 'bien'); break; }
     case 'ver-cliente': abrirCliente(id); break;
+    case 'orden-clientes': filtroClientes.orden = valor; pintarVistaClientes(); break;
+    case 'importar-contactos': importarContactos(); break;
+    case 'compartir-catalogo': compartirCatalogo(); break;
+    case 'contacto-a-form': contactoAlFormulario(); break;
+    case 'contacto-a-venta': contactoAVenta(); break;
+    case 'tel-contacto': { const f = $('#cTel'); if (f) f.value = telBonito(valor); $$('.tels-contacto .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === valor))); break; }
     case 'editar-cliente': { const x = clientePorTel(id); if (x) abrirFormCliente(x, false); break; }
     case 'guardar-cliente': guardarCliente(el); break;
     case 'borrar-cliente': {
@@ -2944,6 +3108,7 @@ document.addEventListener('input', e => {
   const t = e.target;
   const it = itemActual();
   if (t.id === 'qCliente') pintarListaClientes();
+  else if (t.id === 'qClientes') { filtroClientes.q = t.value; pintarVistaClientes(); }
   else if (t.id === 'fPrecio' && it) { it.precio = num(t.value); it.tocado.add('precio'); pintarPrecioItem(); }
   else if (t.id === 'fCostoItem' && it) { it.costoManual = num(t.value); pintarPrecioItem(); }
   else if (t.id === 'fTallaOtra' && it) { it.talla = t.value.trim(); it.tocado.add('talla'); $$('#tallaOpciones .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === it.talla))); programarVista(); }
