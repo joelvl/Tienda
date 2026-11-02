@@ -7,9 +7,11 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | Archivo | Para qué sirve |
 |---|---|
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
+| `catalogo.html` | Catálogo para los clientes: solo las prendas a la venta (foto, talla, color, precio), sin costos ni ganancias. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
 | `supabase/migrations/…_clientes.sql` | Clientes (nombre y teléfono; el teléfono es la llave), el cliente de cada venta y permisos para borrar. |
+| `supabase/migrations/…_catalogo.sql` | WhatsApp de la tienda y las dos funciones públicas que usa el catálogo. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
@@ -93,3 +95,12 @@ En la pestaña **Clientes** se ve cuánto ha comprado cada cliente (ordenados po
 El teléfono es lo que identifica al cliente: no se repite. Se pueden agregar a mano, al guardar una venta, o desde los contactos del teléfono (**Agregar desde mis contactos** permite elegir varios a la vez; se toma el nombre y el número, y se quita el +506). Elegir contactos funciona en Chrome para Android; en iPhone y en el navegador propio de Huawei el botón no aparece y se escriben a mano.
 
 Al borrar un cliente sus compras se quedan como vendidas, pero sin cliente.
+
+## Catálogo para clientes
+En **Prendas** o **Clientes** toque **Compartir catálogo** y mándelo por WhatsApp; también desde la ficha de cada cliente con **Enviarle el catálogo por WhatsApp**. El enlace es `…/catalogo.html` del mismo sitio.
+
+Los clientes no necesitan usuario. El catálogo muestra solo las prendas que están en la tienda (las vendidas desaparecen solas) con foto, talla, color, precio y código. No se ve el costo, la compra, la tienda donde se compró, las ventas ni los clientes, y desde el catálogo no se puede cambiar nada.
+
+Ponga el **WhatsApp de la tienda** en **Ajustes**: así cada prenda del catálogo tiene un botón **La quiero** que le escribe a ese número con el nombre, la talla, el precio y el código de la prenda.
+
+El catálogo solo existe en la versión publicada con Supabase.

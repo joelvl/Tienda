@@ -107,6 +107,7 @@ input:focus,select:focus{border-color:var(--foco)}
 .nota{font-size:16px;color:var(--tinta-suave)}
 .intro{color:var(--tinta-suave);max-width:60ch}
 .mt{margin-top:10px}
+.mb{margin-bottom:14px}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dos .campo{margin:8px 0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -598,6 +599,7 @@ const ICON = {
   tienda: svg('<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9.5 20v-6h5v6"/>'),
   salir: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'),
   mas: svg('<path d="M12 5v14M5 12h14"/>'),
+  compartir: svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'),
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
 };
 
@@ -618,7 +620,7 @@ const TAMANOS = {
   '51x25': { w: 50.8, h: 25.4, nombre: '2 × 1 pulgadas' },
 };
 const PRECIOS_RAPIDOS = [1900, 2900, 3900, 4900, 5900, 6900, 7900, 9900];
-const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick' };
+const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick', whatsapp: '' };
 const PXMM = 16;
 function tallasPara(tipo) {
   if (tipo === 'Zapatos') return ['34', '35', '36', '37', '38', '39', '40', '41'];
@@ -673,7 +675,7 @@ const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
-const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa'];
+const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa', 'whatsapp'];
 const tomar = (o, campos) => { const r = {}; for (const k of campos) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
 // Dentro de Claude: base de datos compartida del artifact
@@ -2381,6 +2383,21 @@ function pintarVistaClientes() {
     </button>`).join('') + (lista.length > 200 ? `<p class="nota">y ${lista.length - 200} más. Escriba para buscar.</p>` : '');
 }
 const enlaceWhatsApp = t => `https://wa.me/${t.length === 8 ? '506' + t : t}`;
+
+// Catálogo para clientes (catalogo.html): solo existe en la versión publicada con Supabase
+const hayCatalogo = () => S.modo === 'supabase';
+const urlCatalogo = () => new URL('catalogo.html', location.href).href;
+const textoCatalogo = nombre => `¡Hola${nombre ? ' ' + nombre.split(' ')[0] : ''}! Estas son las prendas que tengo a la venta en ${S.config.nombre || 'la tienda'}: ${urlCatalogo()}`;
+async function compartirCatalogo() {
+  if (!S.config.whatsapp) toast('Consejo: ponga el WhatsApp de la tienda en Ajustes para que los clientes le escriban desde el catálogo.');
+  const texto = textoCatalogo('');
+  if (navigator.share) {
+    try { await navigator.share({ title: S.config.nombre || 'Catálogo', text: texto }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(texto); toast('Enlace del catálogo copiado. Péguelo en WhatsApp.', 'bien'); }
+  catch (e) { window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener'); }
+}
 function abrirCliente(tel) {
   const x = clientePorTel(tel);
   if (!x) return;
@@ -2402,7 +2419,8 @@ function abrirCliente(tel) {
       <div class="vc-cab"><span>${esc(fLarga.format(v.fecha))}</span><span>${col(v.total)}</span></div>
       <ul>${v.ps.map(p => `<li>${esc(p.descripcion)}${p.talla ? `, talla ${esc(p.talla)}` : ''}: ${col(p.precioVenta)}</li>`).join('')}</ul></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
     <div class="botones-hoja">
-      <a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(x.telefono)}" target="_blank" rel="noopener">Escribirle por WhatsApp</a>
+      ${hayCatalogo() ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(x.telefono)}?text=${encodeURIComponent(textoCatalogo(x.nombre))}" target="_blank" rel="noopener">${ICON.compartir} Enviarle el catálogo por WhatsApp</a>` : ''}
+      <a class="btn ${hayCatalogo() ? 'btn-sec' : 'btn-gana'} btn-enorme" href="${enlaceWhatsApp(x.telefono)}" target="_blank" rel="noopener">Escribirle por WhatsApp</a>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-cliente" data-id="${esc(x.telefono)}">Cambiar nombre</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-cliente" data-id="${esc(x.telefono)}">Borrar cliente</button>
     </div>`, null, x.nombre);
@@ -2672,6 +2690,7 @@ function abrirAjustes() {
     <div class="campo"><label for="aIa">Reconocimiento de fotos</label><select id="aIa">
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
+    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">En el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
@@ -2689,7 +2708,9 @@ function abrirAjustes() {
 }
 async function guardarAjustes(btn) {
   const factor = Math.max(1, num($('#aFactor').value) / 1000 || 2.5);
-  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value };
+  const wa = telDeContacto($('#aWa').value);
+  if (wa && (wa.length < 8 || wa.length > 15)) { toast('Escriba el WhatsApp completo (8 números) o déjelo vacío.', 'mal'); $('#aWa').focus(); return; }
+  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value, whatsapp: telDeContacto($('#aWa').value) };
   btn.disabled = true;
   const ok = await escribir(() => backend.ponerConfig(cfg));
   btn.disabled = false;
@@ -2841,6 +2862,7 @@ const VISTAS = {
   prendas: {
     mount(el) {
       el.innerHTML = `<h1>Mis prendas</h1>
+        ${hayCatalogo() ? `<button type="button" class="btn btn-sec btn-enorme mb" data-accion="compartir-catalogo">${ICON.compartir} Compartir catálogo con clientes</button>` : ''}
         <div class="segmento" role="group" aria-label="Qué prendas mostrar">
           <button type="button" data-estado="disponible"></button>
           <button type="button" data-estado="vendida"></button>
@@ -2877,6 +2899,7 @@ const VISTAS = {
         <div class="botones-clientes">
           <button type="button" class="btn btn-marca btn-enorme" data-accion="cliente-nuevo">${ICON.mas} Cliente nuevo</button>
           ${hayContactos() ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="importar-contactos">${ICON.persona} Agregar desde mis contactos</button>` : ''}
+          ${hayCatalogo() ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="compartir-catalogo">${ICON.compartir} Compartir catálogo</button>` : ''}
         </div>
         <dl class="cifras" id="cifrasClientes"></dl>
         <div class="segmento dos-op" role="group" aria-label="Ordenar clientes">
@@ -3047,6 +3070,7 @@ document.addEventListener('click', async e => {
     case 'ver-cliente': abrirCliente(id); break;
     case 'orden-clientes': filtroClientes.orden = valor; pintarVistaClientes(); break;
     case 'importar-contactos': importarContactos(); break;
+    case 'compartir-catalogo': compartirCatalogo(); break;
     case 'contacto-a-form': contactoAlFormulario(); break;
     case 'contacto-a-venta': contactoAVenta(); break;
     case 'tel-contacto': { const f = $('#cTel'); if (f) f.value = telBonito(valor); $$('.tels-contacto .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === valor))); break; }

@@ -1,5 +1,5 @@
 // Arma la carpeta dist/ que se publica en GitHub Pages.
-// Inserta en index.html la dirección de Supabase y la llave pública (publicable),
+// Inserta en index.html y catalogo.html la dirección de Supabase y la llave pública (publicable),
 // más lo necesario para instalar la tienda en la pantalla de inicio del celular.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -32,6 +32,19 @@ html = html.replace(marca, [
 
 mkdirSync("dist", { recursive: true });
 writeFileSync("dist/index.html", html);
+
+// Catálogo para clientes: solo necesita la dirección y la llave pública.
+let catalogo = readFileSync("catalogo.html", "utf8");
+if (!catalogo.includes(marca)) {
+  console.error(`No se encontró ${marca} en catalogo.html`);
+  process.exit(1);
+}
+catalogo = catalogo.replace(marca, [
+  `<script>window.MI_TIENDA_CONFIG=${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: clave }).replace(/</g, "\\u003c")};</script>`,
+  `<meta name="theme-color" content="#C92A62">`,
+  `<link rel="icon" href="icono-192.png">`,
+].join("\n"));
+writeFileSync("dist/catalogo.html", catalogo);
 for (const f of ["manifest.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
   copyFileSync(`publico/${f}`, `dist/${f}`);
 }
