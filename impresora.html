@@ -69,12 +69,13 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--superficie-2);b
     </select>
     <button type="button" class="btn" id="tspl" disabled>Probar idioma TSPL</button>
     <button type="button" class="btn" id="escpos" disabled>Probar idioma ESC/POS</button>
+    <button type="button" class="btn" id="zpl" disabled>Probar idioma ZPL (tipo Zebra)</button>
     <p class="nota">Pruebe uno por uno y fíjese si sale algo en la impresora. Con que uno imprima, ya se puede.</p>
   </div>
 
   <div class="caja">
     <h2>3. Copie este informe</h2>
-    <p class="nota">Péguelo en el chat junto con cuál prueba imprimió (TSPL, ESC/POS o ninguna).</p>
+    <p class="nota">Péguelo en el chat junto con cuál prueba imprimió (TSPL, ESC/POS, ZPL o ninguna).</p>
     <pre id="informe">Todavía no hay datos.</pre>
     <button type="button" class="btn" id="copiar">Copiar el informe</button>
   </div>
@@ -128,7 +129,7 @@ async function buscar() {
     if (!candidata) { anotar('\nNo encontré por dónde mandarle datos.'); $('#soporte').innerHTML = '<p class="mal">Se conectó, pero no encontré por dónde mandarle datos.</p><p class="nota">Copie el informe de abajo y péguelo en el chat.</p>'; return; }
     E.escribir = candidata;
     anotar(`\nUsaré ${hex(candidata.service.uuid)} / ${hex(candidata.uuid)} para imprimir.`);
-    $('#tspl').disabled = $('#escpos').disabled = false;
+    $('#tspl').disabled = $('#escpos').disabled = $('#zpl').disabled = false;
     $('#soporte').innerHTML = `<p class="ok">Conectada a «${d.name || 'la impresora'}».</p><p class="nota">Ahora pruebe las etiquetas de prueba.</p>`;
   } catch (e) {
     anotar(`\nError al buscar o conectar: ${e.name}: ${e.message}`);
@@ -160,6 +161,9 @@ async function probar(idioma, boton) {
         'BARCODE 16,60,"128",60,1,0,2,2,"000123"',
         'PRINT 1,1', '',
       ].join('\r\n')));
+    } else if (idioma === 'ZPL') {
+      // 8 puntos por mm (203 dpi)
+      await enviar(ascii(`^XA^PW${w * 8}^LL${h * 8}^FO16,16^A0N,32,32^FDPRUEBA ZPL^FS^FO16,64^BY2^BCN,60,Y,N,N^FD000123^FS^XZ\r\n`));
     } else {
       // ESC @ (reiniciar), texto, avanzar papel
       const ini = new Uint8Array([0x1b, 0x40]);
@@ -176,6 +180,7 @@ async function probar(idioma, boton) {
 $('#buscar').addEventListener('click', buscar);
 $('#tspl').addEventListener('click', e => probar('TSPL', e.currentTarget));
 $('#escpos').addEventListener('click', e => probar('ESC/POS', e.currentTarget));
+$('#zpl').addEventListener('click', e => probar('ZPL', e.currentTarget));
 $('#copiar').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('#informe').textContent); $('#copiar').textContent = 'Copiado. Péguelo en WhatsApp.'; }
   catch (e) { $('#copiar').textContent = 'No se pudo copiar: mantenga el dedo sobre el texto y cópielo'; }
