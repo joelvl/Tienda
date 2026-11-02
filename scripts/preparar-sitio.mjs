@@ -50,6 +50,8 @@ catalogo = catalogo.replace(marca, [
   `<meta name="apple-mobile-web-app-title" content="Catálogo">`,
 ].join("\n"));
 writeFileSync("dist/catalogo.html", catalogo);
+// Página de prueba de la impresora Bluetooth (no necesita configuración)
+copyFileSync("impresora.html", "dist/impresora.html");
 for (const f of ["manifest.webmanifest", "catalogo.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
   copyFileSync(`publico/${f}`, `dist/${f}`);
 }

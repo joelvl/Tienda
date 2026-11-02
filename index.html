@@ -2742,6 +2742,7 @@ function abrirAjustes() {
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-ajustes">Guardar ajustes</button>
       <button type="button" class="btn btn-sec btn-enorme" data-ir="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-prueba">${ICON.impresora} Imprimir etiqueta de prueba</button>
+      ${S.modo === 'supabase' && navigator.bluetooth ? `<a class="btn btn-sec btn-enorme" href="impresora.html" target="_blank" rel="noopener">${ICON.impresora} Probar impresora por Bluetooth</a>` : ''}
       ${puedeDescargar() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="exportar">Descargar mis datos para Excel</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="respaldo">Descargar respaldo completo</button>` : ''}
       <label class="btn btn-sec btn-enorme"><input type="file" accept=".json,application/json" class="oculto" id="inRespaldo">Cargar un respaldo</label>

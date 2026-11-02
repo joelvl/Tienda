@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prueba de impresora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Diagnóstico: averigua qué Bluetooth y qué idioma usa la impresora de etiquetas. */
+:root{
+  --fondo:#EFEDF6; --superficie:#FFFFFF; --superficie-2:#F6F5FA; --tinta:#221F3B; --tinta-suave:#5B5775; --linea:#D8D4E6;
+  --marca:#C92A62; --marca-tinta:#FFFFFF; --gana:#0A7A52; --pierde:#B42318; --foco:#2F54EB;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+    --marca:#FF6B9C; --marca-tinta:#1B1020; --gana:#48D597; --pierde:#FF8E7E; --foco:#8EA8FF;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+  --marca:#FF6B9C; --marca-tinta:#1B1020; --gana:#48D597; --pierde:#FF8E7E; --foco:#8EA8FF;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:18px;line-height:1.45}
+main{max-width:640px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px))}
+h1{font-size:26px;margin:0 0 6px}
+h2{font-size:20px;margin:22px 0 8px}
+p{margin:6px 0}
+.nota{color:var(--tinta-suave);font-size:16px}
+.caja{background:var(--superficie);border-radius:16px;padding:14px 16px;margin:12px 0}
+.btn{appearance:none;display:flex;align-items:center;justify-content:center;width:100%;min-height:58px;margin:10px 0;border:2px solid var(--linea);border-radius:14px;background:var(--superficie);color:var(--tinta);font:inherit;font-weight:700;cursor:pointer;padding:0 14px;text-align:center}
+.btn-marca{background:var(--marca);border-color:var(--marca);color:var(--marca-tinta)}
+.btn:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
+.ok{color:var(--gana);font-weight:700}
+.mal{color:var(--pierde);font-weight:700}
+select{width:100%;min-height:52px;border:2px solid var(--linea);border-radius:12px;background:var(--superficie);color:var(--tinta);font:inherit;padding:0 12px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--superficie-2);border-radius:12px;padding:12px;font-size:13px;max-height:320px;overflow:auto;margin:8px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Prueba de impresora</h1>
+  <p class="nota">Esta página averigua si la tienda puede imprimir directo en su impresora de etiquetas por Bluetooth, sin la app Diabel.</p>
+
+  <div class="caja" id="soporte"></div>
+
+  <div class="caja">
+    <p><b>Antes de empezar:</b> encienda la impresora con papel de etiquetas, <b>cierre la app Diabel</b> (si está conectada, la impresora no deja entrar a nadie más) y tenga el Bluetooth del teléfono encendido.</p>
+    <button type="button" class="btn btn-marca" id="buscar">1. Buscar la impresora</button>
+    <p class="nota">Elija la impresora en la lista que abre el teléfono. Si no aparece, la impresora solo tiene Bluetooth clásico (la página no puede usarlo).</p>
+  </div>
+
+  <div class="caja">
+    <h2>2. Imprimir una etiqueta de prueba</h2>
+    <label for="tam" class="nota">Tamaño de la etiqueta</label>
+    <select id="tam">
+      <option value="50x30">50 × 30 mm</option>
+      <option value="40x30">40 × 30 mm</option>
+      <option value="60x40">60 × 40 mm</option>
+      <option value="50x25">50 × 25 mm</option>
+      <option value="40x20">40 × 20 mm</option>
+    </select>
+    <button type="button" class="btn" id="tspl" disabled>Probar idioma TSPL</button>
+    <button type="button" class="btn" id="escpos" disabled>Probar idioma ESC/POS</button>
+    <p class="nota">Pruebe uno por uno y fíjese si sale algo en la impresora. Con que uno imprima, ya se puede.</p>
+  </div>
+
+  <div class="caja">
+    <h2>3. Copie este informe</h2>
+    <p class="nota">Péguelo en el chat junto con cuál prueba imprimió (TSPL, ESC/POS o ninguna).</p>
+    <pre id="informe">Todavía no hay datos.</pre>
+    <button type="button" class="btn" id="copiar">Copiar el informe</button>
+  </div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+// Servicios que usan las impresoras de etiquetas chinas más comunes. Web Bluetooth solo deja ver los que se nombran aquí.
+const SERVICIOS = [
+  0x18f0, 0xff00, 0xffe0, 0xfff0, 0xae30, 0xae00, 0xfee7, 0xff10, 0x1800, 0x1801, 0x180a,
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',   // ISSC / Microchip (muchas Xprinter, Gprinter, HPRT)
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',   // común en impresoras portátiles
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',   // Nordic UART
+  '0000fff0-0000-1000-8000-00805f9b34fb',
+];
+const E = { dispositivo: null, escribir: null, lineas: [] };
+function anotar(t) { E.lineas.push(t); $('#informe').textContent = E.lineas.join('\n'); }
+const hex = u => typeof u === 'string' ? u : u.toString(16);
+
+function pintarSoporte() {
+  const s = $('#soporte');
+  if (!navigator.bluetooth) {
+    s.innerHTML = '<p class="mal">Este navegador no puede usar Bluetooth.</p><p class="nota">Abra esta página en <b>Chrome</b> en Android (o en una computadora). En iPhone no funciona.</p>';
+    $('#buscar').disabled = true;
+  } else s.innerHTML = '<p class="ok">Este navegador sí puede usar Bluetooth.</p>';
+  anotar(`Navegador: ${navigator.userAgent}`);
+}
+
+async function buscar() {
+  try {
+    const d = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: SERVICIOS });
+    E.dispositivo = d;
+    anotar(`\nImpresora: ${d.name || '(sin nombre)'}  id ${d.id}`);
+    const gatt = await d.gatt.connect();
+    anotar('Conectada por Bluetooth LE.');
+    const servicios = await gatt.getPrimaryServices();
+    let candidata = null;
+    for (const sv of servicios) {
+      anotar(`Servicio ${hex(sv.uuid)}`);
+      let cs = [];
+      try { cs = await sv.getCharacteristics(); } catch (e) { anotar('  (no se pudieron leer sus características)'); }
+      for (const c of cs) {
+        const p = c.properties;
+        const props = ['read', 'write', 'writeWithoutResponse', 'notify', 'indicate'].filter(k => p[k]).join(', ');
+        anotar(`  característica ${hex(c.uuid)}: ${props}`);
+        // La primera que acepta escritura fuera de los servicios genéricos (1800, 1801, 180a)
+        if (!candidata && (p.write || p.writeWithoutResponse) && !/^0000180[01a]-/.test(sv.uuid)) candidata = c;
+      }
+    }
+    if (!candidata) { anotar('\nNo encontré por dónde mandarle datos.'); $('#soporte').innerHTML = '<p class="mal">Se conectó, pero no encontré por dónde mandarle datos.</p><p class="nota">Copie el informe de abajo y péguelo en el chat.</p>'; return; }
+    E.escribir = candidata;
+    anotar(`\nUsaré ${hex(candidata.service.uuid)} / ${hex(candidata.uuid)} para imprimir.`);
+    $('#tspl').disabled = $('#escpos').disabled = false;
+    $('#soporte').innerHTML = `<p class="ok">Conectada a «${d.name || 'la impresora'}».</p><p class="nota">Ahora pruebe las etiquetas de prueba.</p>`;
+  } catch (e) {
+    anotar(`\nError al buscar o conectar: ${e.name}: ${e.message}`);
+    if (e.name !== 'NotFoundError') $('#soporte').innerHTML = `<p class="mal">No se pudo conectar (${e.message}).</p><p class="nota">Revise que la app Diabel esté cerrada y la impresora encendida, y vuelva a intentar.</p>`;
+  }
+}
+
+// Manda en pedazos de 20 bytes: es lo que aceptan todas las impresoras BLE, aunque algunas soporten más
+async function enviar(bytes) {
+  const c = E.escribir;
+  const sinRespuesta = c.properties.writeWithoutResponse;
+  for (let i = 0; i < bytes.length; i += 20) {
+    const parte = bytes.slice(i, i + 20);
+    if (sinRespuesta && c.writeValueWithoutResponse) { await c.writeValueWithoutResponse(parte); await new Promise(r => setTimeout(r, 15)); }
+    else await c.writeValue(parte);
+  }
+}
+const ascii = t => new TextEncoder().encode(t);
+function tamano() { const [w, h] = $('#tam').value.split('x').map(Number); return { w, h }; }
+
+async function probar(idioma, boton) {
+  boton.disabled = true;
+  const { w, h } = tamano();
+  try {
+    if (idioma === 'TSPL') {
+      await enviar(ascii([
+        `SIZE ${w} mm,${h} mm`, 'GAP 2 mm,0 mm', 'DIRECTION 1', 'CLS',
+        'TEXT 16,16,"3",0,1,1,"PRUEBA TSPL"',
+        'BARCODE 16,60,"128",60,1,0,2,2,"000123"',
+        'PRINT 1,1', '',
+      ].join('\r\n')));
+    } else {
+      // ESC @ (reiniciar), texto, avanzar papel
+      const ini = new Uint8Array([0x1b, 0x40]);
+      const txt = ascii('PRUEBA ESC/POS\n000123\n\n\n');
+      await enviar(new Uint8Array([...ini, ...txt]));
+    }
+    anotar(`Mandé la prueba ${idioma} (${w}×${h} mm).`);
+  } catch (e) {
+    anotar(`Error al mandar ${idioma}: ${e.name}: ${e.message}`);
+  }
+  boton.disabled = false;
+}
+
+$('#buscar').addEventListener('click', buscar);
+$('#tspl').addEventListener('click', e => probar('TSPL', e.currentTarget));
+$('#escpos').addEventListener('click', e => probar('ESC/POS', e.currentTarget));
+$('#copiar').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('#informe').textContent); $('#copiar').textContent = 'Copiado. Péguelo en WhatsApp.'; }
+  catch (e) { $('#copiar').textContent = 'No se pudo copiar: mantenga el dedo sobre el texto y cópielo'; }
+});
+pintarSoporte();
+</script>
+</body>
+</html>
