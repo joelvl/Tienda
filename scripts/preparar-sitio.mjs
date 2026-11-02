@@ -41,11 +41,16 @@ if (!catalogo.includes(marca)) {
 }
 catalogo = catalogo.replace(marca, [
   `<script>window.MI_TIENDA_CONFIG=${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: clave }).replace(/</g, "\\u003c")};</script>`,
+  `<link rel="manifest" href="catalogo.webmanifest">`,
   `<meta name="theme-color" content="#C92A62">`,
   `<link rel="icon" href="icono-192.png">`,
+  `<link rel="apple-touch-icon" href="icono-180.png">`,
+  `<meta name="apple-mobile-web-app-capable" content="yes">`,
+  `<meta name="mobile-web-app-capable" content="yes">`,
+  `<meta name="apple-mobile-web-app-title" content="Catálogo">`,
 ].join("\n"));
 writeFileSync("dist/catalogo.html", catalogo);
-for (const f of ["manifest.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
+for (const f of ["manifest.webmanifest", "catalogo.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
   copyFileSync(`publico/${f}`, `dist/${f}`);
 }
 writeFileSync("dist/.nojekyll", "");

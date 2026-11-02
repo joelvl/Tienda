@@ -1,0 +1,18 @@
+{
+  "id": "./catalogo.html",
+  "name": "Catálogo",
+  "short_name": "Catálogo",
+  "description": "Prendas disponibles",
+  "lang": "es",
+  "start_url": "./catalogo.html",
+  "scope": "./catalogo",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#EFEDF6",
+  "theme_color": "#C92A62",
+  "icons": [
+    { "src": "icono-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
