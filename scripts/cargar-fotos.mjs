@@ -8,6 +8,8 @@
 //   --compra "nombre"   la compra a la que se cargan (por defecto, la primera que registró)
 //   --precio-uno        ponerles ₡1 a todas en lugar del precio de la foto
 //   --preciso           usar el modelo preciso de la IA (más lento)
+//   --datos archivo.json  usar datos ya revisados en lugar de la IA: { "foto.jpg": { tipo, color, descripcion, talla, precio } }
+//                         y, para corregir prendas que ya existen: { "codigo:000007": { tipo, color, descripcion, talla } }
 //   --sitio URL         dirección de la tienda publicada (por defecto https://joelvl.github.io/Tienda/)
 //
 // Si se corta, se puede volver a correr: las fotos ya subidas quedan anotadas en
@@ -21,9 +23,10 @@ import { createInterface } from "node:readline";
 
 const args = process.argv.slice(2);
 const opcion = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
-const carpeta = args.find((a, i) => !a.startsWith("--") && !["--compra", "--sitio"].includes(args[i - 1]));
+const carpeta = args.find((a, i) => !a.startsWith("--") && !["--compra", "--sitio", "--datos"].includes(args[i - 1]));
 const prueba = args.includes("--prueba"), precioUno = args.includes("--precio-uno"), preciso = args.includes("--preciso");
 const sitio = opcion("--sitio") || "https://joelvl.github.io/Tienda/";
+const datos = opcion("--datos") ? JSON.parse(readFileSync(opcion("--datos"), "utf8")) : null;
 if (!carpeta || !existsSync(carpeta)) { console.error('Uso: node scripts/cargar-fotos.mjs "/ruta/a/las/fotos" [--prueba] [--compra "nombre"] [--precio-uno]'); process.exit(1); }
 
 // Tipos y colores: los mismos de la página, leídos de index.html para no repetirlos aquí
@@ -38,8 +41,13 @@ const fotos = readdirSync(carpeta).filter(f => /\.(jpe?g|png|heic|webp)$/i.test(
 const anotadas = join(carpeta, ".carga-tienda.json");
 const hechas = existsSync(anotadas) ? JSON.parse(readFileSync(anotadas, "utf8")) : {};
 const pendientes = fotos.filter(f => !hechas[f]);
+if (datos) {
+  const faltan = pendientes.filter(f => !datos[f]);
+  if (faltan.length) { console.error(`El archivo de datos no trae ${faltan.length} fotos: ${faltan.slice(0, 5).join(", ")}…`); process.exit(1); }
+}
 console.log(`${fotos.length} fotos en la carpeta; ${fotos.length - pendientes.length} ya subidas; ${pendientes.length} por subir.`);
-if (!pendientes.length) process.exit(0);
+const correcciones = datos ? Object.entries(datos).filter(([k]) => k.startsWith("codigo:")) : [];
+if (!pendientes.length && !correcciones.length) process.exit(0);
 
 // Achica con sips: 1024 px para la IA y 280 px para la miniatura que guarda la tienda (igual que la página)
 const tmp = mkdtempSync(join(tmpdir(), "carga-tienda-"));
@@ -103,6 +111,7 @@ if (!compra) { console.error(`No hay una compra "${pedida}". Compras: ${compras.
 const yaTiene = (await api(`/rest/v1/prendas?select=id&compra_id=eq.${encodeURIComponent(compra.id)}`)).length;
 console.log(`\nCompra: «${compra.nombre}» del ${new Date(Number(compra.fecha)).toLocaleDateString("es-CR")} (ya tiene ${yaTiene} prendas).`);
 console.log(`Se van a subir ${pendientes.length} prendas, ${precioUno ? "todas a ₡1" : "con el precio de la foto (₡1 si no trae)"}.`);
+if (correcciones.length) console.log(`Y se corrigen ${correcciones.length} prendas que ya estaban (tipo, nombre, color y talla; el precio no se toca).`);
 if (!/^s/i.test(await preguntar("¿Seguir? (s/n): "))) { console.log("No se subió nada."); process.exit(0); }
 
 // Costo por prenda como en la página: fijo si la compra tiene cantidad; si no, se reparte entre todas
@@ -121,8 +130,8 @@ for (const f of pendientes) {
   n++;
   try {
     // Si la IA no contesta, la foto no se sube: se reintenta al volver a correr el script
-    const cuerpo = JSON.stringify({ prompt: PROMPT, imagen: jpeg(f, 1024, 82), preciso });
-    let ia = null;
+    let ia = datos ? datos[f] : null;
+    const cuerpo = ia ? "" : JSON.stringify({ prompt: PROMPT, imagen: jpeg(f, 1024, 82), preciso });
     for (let intento = 1; intento <= 2 && !ia; intento++) {
       process.stdout.write(`  ${n}/${pendientes.length}  leyendo la foto…\r`);
       ia = await api("/functions/v1/clasificar", { method: "POST", body: cuerpo }, 90).catch(e => { console.warn(`  ${n}/${pendientes.length}  la IA no contestó (${e.name === "TimeoutError" ? "tardó demasiado" : e.message})`); return null; });
@@ -151,6 +160,14 @@ for (const f of pendientes) {
     console.error(`  ${n}/${pendientes.length}  ${f}: no se pudo subir (${e.message})`);
     if (++seguidas >= 3) { console.error("\nTres fotos seguidas fallaron: paro aquí. Revise el internet o el reconocimiento de fotos en la app y vuelva a correr el comando."); break; }
   }
+}
+for (const [k, x] of correcciones) {
+  const cambio = { tipo: elegir(x.tipo, TIPOS) || "Otro", color: elegir(x.color, COLORES) || "", descripcion: String(x.descripcion || "").slice(0, 60), talla: x.talla ? String(x.talla).slice(0, 20) : "" };
+  if (!cambio.descripcion) delete cambio.descripcion;
+  try {
+    await api(`/rest/v1/prendas?codigo=eq.${encodeURIComponent(k.slice(7))}`, { method: "PATCH", body: JSON.stringify(cambio), headers: { Prefer: "return=minimal" } });
+    console.log(`  corregida ${k.slice(7)}: ${cambio.descripcion || ""}, ${cambio.tipo}${cambio.talla ? `, talla ${cambio.talla}` : ""}`);
+  } catch (e) { console.error(`  ${k.slice(7)}: no se pudo corregir (${e.message})`); }
 }
 rmSync(tmp, { recursive: true, force: true });
 console.log(`\nListo: ${n - fallas} prendas subidas a «${compra.nombre}».${fallas ? ` ${fallas} fallaron: vuelva a correr el mismo comando para reintentarlas.` : ""}`);
