@@ -406,6 +406,11 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 .escaner-pie{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:#111;flex-wrap:wrap}
 .escaner-pie .btn{flex:1 1 220px}
 @media (prefers-reduced-motion:reduce){.escaner-marco{transition:none}}
+/* cámara para fotos de prendas: se ve completo lo que se va a guardar */
+.camara-video video{object-fit:contain}
+.camara-video::after{content:"";position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.camara-video.flash::after{opacity:.7;transition:none}
+@media (prefers-reduced-motion:reduce){.camara-video::after{transition:none}}
 
 /* ---------- inicio de sesión ---------- */
 .login{position:fixed;inset:0;z-index:80;background:var(--fondo);display:grid;place-items:center;padding:20px;overflow:auto}
@@ -502,6 +507,16 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
   </div>
   <p class="escaner-msg" id="escMsg" aria-live="assertive"></p>
   <div class="escaner-pie"><span id="escCuenta"></span><button type="button" class="btn btn-gana" data-accion="cerrar-escaner">Listo, ver la venta</button></div>
+</div>
+<div class="escaner" id="camara" role="dialog" aria-modal="true" aria-label="Tomar fotos" hidden>
+  <div class="escaner-cab"><b>Tomar fotos</b><button class="cerrar" type="button" data-accion="cerrar-camara" id="btnCerrarCam"></button></div>
+  <div class="escaner-video camara-video" id="camVivo"><video id="camVideo" playsinline muted autoplay></video></div>
+  <div class="escaner-foto" id="camFoto" hidden>
+    <p>No se pudo abrir la cámara aquí. Use la cámara del teléfono.</p>
+    <label class="btn btn-marca btn-gigante"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos><span id="camFotoIco"></span><span>Tomar foto</span></label>
+  </div>
+  <p class="escaner-msg" id="camMsg" aria-live="polite"></p>
+  <div class="escaner-pie"><button type="button" class="btn btn-marca" data-accion="disparar" id="btnDisparar"></button><button type="button" class="btn btn-gana" data-accion="cerrar-camara" id="btnListoCam">Listo</button></div>
 </div>
 <div class="login" id="login" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
@@ -1210,17 +1225,24 @@ function nuevoItem(datos) {
   it.precio = sugerido(it);
   return it;
 }
-function cargarImagen(file) {
-  return new Promise((res, rej) => {
+// Con «max», la foto se abre ya reducida: una foto de 48 MP abierta completa ocupa ~190 MB
+// y en tablets con poca memoria Android cierra el navegador.
+async function cargarImagen(file, max) {
+  const img = await new Promise((res, rej) => {
     const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => { res(img); setTimeout(() => URL.revokeObjectURL(url), 2000); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen')); };
-    img.src = url;
+    const im = new Image();
+    im.onload = () => { res(im); setTimeout(() => URL.revokeObjectURL(url), 2000); };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen')); };
+    im.src = url;
   });
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!max || !window.createImageBitmap || Math.max(w, h) <= max) return img;
+  try { return await createImageBitmap(file, w >= h ? { resizeWidth: max, resizeQuality: 'high' } : { resizeHeight: max, resizeQuality: 'high' }); }
+  catch (e) { return img; }
 }
+const soltarImagen = img => { if (img && img.close) img.close(); };
 function lienzoDe(img, max, rot = 0) {
-  const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+  const w0 = img.naturalWidth || img.videoWidth || img.width, h0 = img.naturalHeight || img.videoHeight || img.height;
   const r = Math.min(1, max / Math.max(w0, h0));
   const w = Math.max(1, Math.round(w0 * r)), h = Math.max(1, Math.round(h0 * r));
   const c = document.createElement('canvas');
@@ -1231,11 +1253,16 @@ function lienzoDe(img, max, rot = 0) {
   g.drawImage(img, 0, 0, w, h);
   return c;
 }
-async function itemDesdeFoto(file) {
-  const img = await cargarImagen(file);
+async function itemDesdeImagen(img) {
   const grande = lienzoDe(img, 1024);
   const blob = await new Promise(r => grande.toBlob(r, 'image/jpeg', 0.82));
-  return nuevoItem({ vista: grande.toDataURL('image/jpeg', 0.72), foto: lienzoDe(img, 280).toDataURL('image/jpeg', 0.6), blob });
+  if (!blob) throw new Error('imagen');
+  return nuevoItem({ vista: grande.toDataURL('image/jpeg', 0.72), foto: lienzoDe(grande, 280).toDataURL('image/jpeg', 0.6), blob });
+}
+async function itemDesdeFoto(file) {
+  const img = await cargarImagen(file, 1024);
+  try { return await itemDesdeImagen(img); }
+  finally { soltarImagen(img); }
 }
 async function agregarFotos(files) {
   const lista = Array.from(files || []).filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || ''));
@@ -1385,7 +1412,7 @@ function htmlAgregarInicio() {
       <p class="nota mt" id="notaCompra">${esc(notaCompra())}</p>
     </div>
     <div class="inicio-fotos">
-      <label class="btn btn-marca btn-gigante"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos>${ICON.camara}<span>Tomar foto</span></label>
+      <button type="button" class="btn btn-marca btn-gigante" data-accion="camara">${ICON.camara}<span>Tomar fotos</span></button>
       <label class="btn btn-sec btn-gigante"><input type="file" accept="image/*" multiple class="oculto" data-fotos>${ICON.galeria}<span>Elegir varias fotos de la galería</span></label>
     </div>
     ${cola.cargando ? `<p class="ia"><span class="girando" aria-hidden="true"></span> Cargando ${plural(cola.cargando, 'foto', 'fotos')}…</p>` : ''}
@@ -1437,7 +1464,7 @@ function htmlCabCola() {
     <div class="cola-acciones">
       <div class="campo compacto"><span class="etq">Compra</span><div id="selCompraCola">${htmlSelectorCompra()}</div></div>
       <label class="btn btn-sec"><input type="file" accept="image/*" multiple class="oculto" data-fotos>${ICON.galeria} Más fotos</label>
-      <label class="btn btn-sec"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos>${ICON.camara} Otra foto</label>
+      <button type="button" class="btn btn-sec" data-accion="camara">${ICON.camara} Otra foto</button>
     </div>`;
 }
 function htmlMiniaturas() {
@@ -1856,12 +1883,14 @@ async function escanearFoto(file) {
   pintarEscaner('Leyendo el código…');
   try {
     await prepararDecodificador();
-    const img = await cargarImagen(file);
+    const img = await cargarImagen(file, 1600);
     let t = null;
-    for (const max of [1600, 1000]) {
-      for (const rot of [0, 90]) { t = await decodificarLienzo(lienzoDe(img, max, rot)); if (t) break; }
-      if (t) break;
-    }
+    try {
+      for (const max of [1600, 1000]) {
+        for (const rot of [0, 90]) { t = await decodificarLienzo(lienzoDe(img, max, rot)); if (t) break; }
+        if (t) break;
+      }
+    } finally { soltarImagen(img); }
     if (t) manejarCodigo(t);
     else { pitar(false); pintarEscaner('No se pudo leer el código. Acérquese más, que se vea nítido y sin reflejo, o escriba el número.', 'mal'); }
   } catch (e) { pintarEscaner('No se pudo leer la foto. Pruebe otra vez.', 'mal'); }
@@ -1874,6 +1903,65 @@ function cerrarEscaner() {
   $('#escaner').hidden = true;
   if ($('#hoja').hidden) document.body.classList.remove('con-hoja');
   if (vista === 'vender') pintarCarrito(true);
+}
+
+// Cámara dentro de la página para fotos de prendas. Con <input capture> Android abre la app
+// de cámara y, si le falta memoria, cierra el navegador y la foto se pierde.
+const CAM = { stream: null, cuenta: 0, ocupado: false };
+function pintarCamara(msg) {
+  $('#camMsg').textContent = msg || (CAM.cuenta ? `${plural(CAM.cuenta, 'foto tomada', 'fotos tomadas')}. Puede seguir tomando.` : 'Ponga la prenda de frente y tome la foto.');
+}
+async function abrirCamara() {
+  CAM.cuenta = 0;
+  const ov = $('#camara');
+  ov.hidden = false;
+  document.body.classList.add('con-hoja');
+  $('#camVivo').hidden = false; $('#camFoto').hidden = true; $('#btnDisparar').hidden = false;
+  $('#btnDisparar').disabled = true;
+  pintarCamara('Abriendo la cámara…');
+  let stream = null;
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } }, audio: false }); }
+    catch (e) { console.warn('Cámara en vivo no disponible:', e && e.name); }
+  }
+  if (ov.hidden) { if (stream) stream.getTracks().forEach(t => t.stop()); return; }
+  if (!stream) {
+    $('#camVivo').hidden = true; $('#camFoto').hidden = false; $('#btnDisparar').hidden = true;
+    pintarCamara(' ');
+    return;
+  }
+  CAM.stream = stream;
+  const v = $('#camVideo');
+  v.srcObject = stream;
+  try { await v.play(); } catch (e) { /* algunos navegadores ya lo reproducen */ }
+  $('#btnDisparar').disabled = false;
+  pintarCamara();
+}
+async function dispararCamara() {
+  const v = $('#camVideo');
+  if (!CAM.stream || !v.videoWidth || CAM.ocupado) return;
+  CAM.ocupado = true;
+  const zona = $('#camVivo');
+  zona.classList.add('flash');
+  requestAnimationFrame(() => requestAnimationFrame(() => zona.classList.remove('flash')));
+  try {
+    compraCola();
+    const habia = cola.items.length;
+    cola.items.push(await itemDesdeImagen(v));
+    CAM.cuenta++;
+    pitar(true);
+    pintarCamara();
+    if (vista === 'agregar') { if (habia === 0) remontarAgregar(); else pintarCabCola(); }
+    procesarIA();
+  } catch (e) { pintarCamara('No se pudo tomar la foto. Pruebe otra vez.'); }
+  finally { CAM.ocupado = false; }
+}
+function cerrarCamara() {
+  if (CAM.stream) { CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+  const v = $('#camVideo'); if (v) v.srcObject = null;
+  $('#camara').hidden = true;
+  if ($('#hoja').hidden) document.body.classList.remove('con-hoja');
+  if (vista === 'agregar') pintarCabCola();
 }
 
 /* ================= PRENDAS ================= */
@@ -2644,6 +2732,9 @@ document.addEventListener('click', async e => {
       break;
     }
     // agregar prendas
+    case 'camara': abrirCamara(); break;
+    case 'disparar': dispararCamara(); break;
+    case 'cerrar-camara': cerrarCamara(); break;
     case 'sin-foto': compraCola(); cola.items.push(nuevoItem({})); cola.i = cola.items.length - 1; remontarAgregar(); break;
     case 'ir-item': cola.i = Number(valor) || 0; remontarAgregar(); window.scrollTo(0, 0); break;
     case 'elegir-tipo':
@@ -2721,13 +2812,14 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.matches('[data-fotos]')) { const f = Array.from(t.files || []); t.value = ''; agregarFotos(f); }
+  if (t.matches('[data-fotos]')) { const f = Array.from(t.files || []); t.value = ''; if (t.closest('#camara')) cerrarCamara(); agregarFotos(f); }
   else if (t.id === 'inEscFoto') { const f = t.files && t.files[0]; t.value = ''; escanearFoto(f); }
   else if (t.id === 'inRespaldo') { const f = t.files && t.files[0]; t.value = ''; cargarRespaldo(f); }
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (!$('#escaner').hidden) cerrarEscaner();
+  else if (!$('#camara').hidden) cerrarCamara();
   else if (!$('#hoja').hidden) cerrarHoja();
 });
 
@@ -2738,6 +2830,9 @@ async function init() {
   $('#btnCerrar').innerHTML = `${ICON.x}<span>Cerrar</span>`;
   $('#btnCerrarEsc').innerHTML = `${ICON.x}<span>Cerrar</span>`;
   $('#escFotoIco').innerHTML = ICON.camara;
+  $('#btnCerrarCam').innerHTML = `${ICON.x}<span>Cerrar</span>`;
+  $('#camFotoIco').innerHTML = ICON.camara;
+  $('#btnDisparar').innerHTML = `${ICON.camara}<span>Tomar foto</span>`;
   $('#tabs').innerHTML = TABS.map(t => `<button type="button" class="tab" data-ir="${t.id}" aria-current="false">${ICON[t.ico]}<span>${t.txt}</span></button>`).join('');
   pintarBotonTema();
   ir('hoy');
