@@ -88,4 +88,8 @@ node scripts/crear-usuario.mjs mama SuClave123
 La llave *service_role* da acceso total: úsela solo en su computadora y nunca la suba a GitHub.
 
 ## Clientes
-Al guardar una venta se puede elegir el cliente (o agregar uno nuevo con su nombre y teléfono). El teléfono no se repite: es lo que identifica al cliente. En **Ajustes → Clientes** se ve lo que ha comprado cada uno, se le cambia el nombre o se borra; sus compras se quedan como vendidas, pero sin cliente.
+En la pestaña **Clientes** se ve cuánto ha comprado cada cliente (ordenados por los que más compran o por nombre), y al tocar uno, cada compra con su fecha, lo que se llevó y el total, más un botón para escribirle por WhatsApp.
+
+El teléfono es lo que identifica al cliente: no se repite. Se pueden agregar a mano, al guardar una venta, o desde los contactos del teléfono (**Agregar desde mis contactos** permite elegir varios a la vez; se toma el nombre y el número, y se quita el +506). Elegir contactos funciona en Chrome para Android; en iPhone y en el navegador propio de Huawei el botón no aparece y se escriben a mano.
+
+Al borrar un cliente sus compras se quedan como vendidas, pero sin cliente.
