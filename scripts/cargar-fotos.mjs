@@ -7,6 +7,7 @@
 // Opciones:
 //   --compra "nombre"   la compra a la que se cargan (por defecto, la primera que registró)
 //   --precio-uno        ponerles ₡1 a todas en lugar del precio de la foto
+//   --preciso           usar el modelo preciso de la IA (más lento)
 //   --sitio URL         dirección de la tienda publicada (por defecto https://joelvl.github.io/Tienda/)
 //
 // Si se corta, se puede volver a correr: las fotos ya subidas quedan anotadas en
@@ -21,7 +22,7 @@ import { createInterface } from "node:readline";
 const args = process.argv.slice(2);
 const opcion = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const carpeta = args.find((a, i) => !a.startsWith("--") && !["--compra", "--sitio"].includes(args[i - 1]));
-const prueba = args.includes("--prueba"), precioUno = args.includes("--precio-uno");
+const prueba = args.includes("--prueba"), precioUno = args.includes("--precio-uno"), preciso = args.includes("--preciso");
 const sitio = opcion("--sitio") || "https://joelvl.github.io/Tienda/";
 if (!carpeta || !existsSync(carpeta)) { console.error('Uso: node scripts/cargar-fotos.mjs "/ruta/a/las/fotos" [--prueba] [--compra "nombre"] [--precio-uno]'); process.exit(1); }
 
@@ -85,8 +86,9 @@ const sesion = await (await fetch(`${URL_SB}/auth/v1/token?grant_type=password`,
 })).json();
 if (!sesion.access_token) { console.error("No se pudo entrar:", sesion.error_description || sesion.msg || "revise usuario y contraseña"); process.exit(1); }
 const H = { apikey: LLAVE, Authorization: `Bearer ${sesion.access_token}`, "Content-Type": "application/json" };
-async function api(ruta, opciones = {}) {
-  const r = await fetch(`${URL_SB}${ruta}`, { ...opciones, headers: { ...H, ...(opciones.headers || {}) } });
+// Toda llamada tiene tiempo límite: sin él, una respuesta que nunca llega deja el script esperando para siempre.
+async function api(ruta, opciones = {}, segundos = 30) {
+  const r = await fetch(`${URL_SB}${ruta}`, { ...opciones, headers: { ...H, ...(opciones.headers || {}) }, signal: AbortSignal.timeout(segundos * 1000) });
   const t = await r.text();
   if (!r.ok) throw new Error(`${ruta}: ${r.status} ${t.slice(0, 200)}`);
   return t ? JSON.parse(t) : null;
@@ -114,11 +116,18 @@ Responda solo con un objeto JSON con estas claves:
 "talla": la talla impresa en la foto (ej. "M", "XL", "2XL" escríbalo "XXL"). Si trae varias, júntelas con "/" (ej. "S/M"). Si no trae, null.
 "precio": el precio impreso en la foto, como número entero de colones (₡12.900 → 12900). Si no trae, null.`;
 
-let creada = Date.now(), n = 0, fallas = 0;
+let creada = Date.now(), n = 0, fallas = 0, seguidas = 0;
 for (const f of pendientes) {
   n++;
   try {
-    const ia = await api("/functions/v1/clasificar", { method: "POST", body: JSON.stringify({ prompt: PROMPT, imagen: jpeg(f, 1024, 82), preciso: true }) }).catch(e => { console.warn(`  (sin IA: ${e.message})`); return {}; });
+    // Si la IA no contesta, la foto no se sube: se reintenta al volver a correr el script
+    const cuerpo = JSON.stringify({ prompt: PROMPT, imagen: jpeg(f, 1024, 82), preciso });
+    let ia = null;
+    for (let intento = 1; intento <= 2 && !ia; intento++) {
+      process.stdout.write(`  ${n}/${pendientes.length}  leyendo la foto…\r`);
+      ia = await api("/functions/v1/clasificar", { method: "POST", body: cuerpo }, 90).catch(e => { console.warn(`  ${n}/${pendientes.length}  la IA no contestó (${e.name === "TimeoutError" ? "tardó demasiado" : e.message})`); return null; });
+    }
+    if (!ia || ia.error) throw new Error(ia && ia.error ? ia.error : "sin respuesta de la IA");
     const tipo = elegir(ia.tipo, TIPOS) || "Otro";
     const precioFoto = Math.round(Number(ia.precio));
     const p = {
@@ -135,10 +144,12 @@ for (const f of pendientes) {
     await api("/rest/v1/prendas", { method: "POST", body: JSON.stringify(p), headers: { Prefer: "return=minimal" } });
     hechas[f] = p.codigo;
     writeFileSync(anotadas, JSON.stringify(hechas, null, 1));
+    seguidas = 0;
     console.log(`  ${n}/${pendientes.length}  ${p.codigo}  ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ""}, ${p.color || "sin color"}, ₡${p.precio}`);
   } catch (e) {
     fallas++;
     console.error(`  ${n}/${pendientes.length}  ${f}: no se pudo subir (${e.message})`);
+    if (++seguidas >= 3) { console.error("\nTres fotos seguidas fallaron: paro aquí. Revise el internet o el reconocimiento de fotos en la app y vuelva a correr el comando."); break; }
   }
 }
 rmSync(tmp, { recursive: true, force: true });
