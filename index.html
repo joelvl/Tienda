@@ -462,6 +462,12 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
 .filtros-prendas .selector{margin:0 0 4px}
 .filtro-tipos{margin:10px 0 4px}
 .filtro-tipos .chip small{font-weight:700}
+.mas-filtros{background:var(--superficie);border-radius:14px;padding:4px 14px;margin:8px 0}
+.mas-filtros summary{cursor:pointer;font-weight:700;min-height:48px;padding:8px 0}
+.mas-filtros summary::after{content:"Para quién, color y precio";display:block;font-weight:400;color:var(--tinta-suave);font-size:15px}
+.mas-filtros[open]{padding-bottom:14px}
+.mas-filtros .etq{font-weight:700;margin:10px 0 0}
+.mas-filtros .chips{margin-top:6px}
 @container vista (min-width:680px){
   .filtros-prendas{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center}
   .filtros-prendas .selector{margin:0}
@@ -612,6 +618,9 @@ const COLORES = [
   ['Dorado', '#c9a227'], ['Plateado', '#c4c8d0'], ['Estampado', 'conic-gradient(#d0202f,#f3d02f,#2e8a4b,#2a55b8,#7a3e9e,#d0202f)'],
 ];
 const NOMBRES_COLOR = COLORES.map(c => c[0]);
+const GENEROS = ['Mujer', 'Hombre', 'Unisex'];
+const generoDe = p => GENEROS.includes(p.genero) ? p.genero : 'Mujer';   // las prendas viejas no lo traen: son de mujer
+const RANGOS_PRECIO = [[0, 4999, 'Menos de ₡5 000'], [5000, 9999, '₡5 000 a ₡9 999'], [10000, 14999, '₡10 000 a ₡14 999'], [15000, 0, '₡15 000 o más']];
 const muestraColor = n => (COLORES.find(c => c[0] === n) || [n, 'transparent'])[1];
 const TAMANOS = {
   '50x30': { w: 50, h: 30, nombre: '50 × 30 mm' },
@@ -639,7 +648,7 @@ let ultimaGuardada = null;
 let hojaCtx = null;
 let focoPrevio = null;
 let ultimoCodigoLocal = 0;
-const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, mostrar: 60 };
+const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 };
 let pestanaCompras = 'compras';
 const cola = { items: [], i: 0, compraId: null, guardadas: [], cargando: 0 };
 const periodo = { modo: 'semana', offset: 0 };
@@ -671,7 +680,7 @@ function usar(nombre) {
 }
 
 /* ================= ALMACENAMIENTO ================= */
-const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel'];
+const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero'];
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
@@ -1262,7 +1271,7 @@ function descDe(it) {
 }
 const iaDisponible = () => !!(cap.sample && cap.sampleImagenes) || S.modo === 'supabase';
 function nuevoItem(datos) {
-  const it = { id: nuevoId('i'), vista: '', foto: '', blob: null, ia: 'pendiente', tipos: [], colores: [], descIA: '', tipo: '', color: '', talla: '', descripcion: '', precio: 0, precioIA: 0, costoManual: 0, tocado: new Set(), verTipos: false, verColores: false, ...datos };
+  const it = { id: nuevoId('i'), vista: '', foto: '', blob: null, ia: 'pendiente', tipos: [], colores: [], descIA: '', tipo: '', color: '', genero: 'Mujer', talla: '', descripcion: '', precio: 0, precioIA: 0, costoManual: 0, tocado: new Set(), verTipos: false, verColores: false, ...datos };
   if (!it.blob || !iaDisponible()) it.ia = 'no';
   it.precio = sugerido(it);
   return it;
@@ -1342,6 +1351,7 @@ Clasifíquelo y responda solo con un objeto JSON con estas claves:
 "tipos": las 3 opciones más probables, de más a menos probable, como lista de objetos {"tipo": texto, "prob": número entre 0 y 1}. El tipo debe ser exactamente uno de: ${JSON.stringify(TIPOS)}. En Costa Rica la falda se dice "Enagua". "Camiseta" es de algodón tipo T-shirt; "Camisa" es de botones con cuello; "Saco" incluye chaquetas y abrigos. "Enterizo" es de una sola pieza que une la parte de arriba con pantalón o short (mono, jumpsuit, romper). "Conjunto" son dos piezas que hacen juego y se venden juntas (ej. top con short, pantalón o enagua de la misma tela).
 "colores": los 3 colores más probables del color principal, con el mismo formato {"color": texto, "prob": número}, usando exactamente uno de: ${JSON.stringify(NOMBRES_COLOR)}. Use "Estampado" si tiene diseño o muchos colores.
 "descripcion": nombre corto en español para la etiqueta, máximo 4 palabras, sin talla ni marca (ej. "Blusa floreada manga corta").
+"genero": para quién es, exactamente uno de ${JSON.stringify(GENEROS)} ("Unisex" si sirve igual para hombre y mujer, como muchas camisetas, joggers o sudaderas).
 "talla": la talla solo si se lee en una etiqueta dentro de la foto (ej. "M", "8", "38"); si no se ve, null.
 "marca": la marca solo si se lee claramente; si no, null.
 "precio": precio de venta sugerido en colones, número entero que termine en 900 (ej. 1900, 2900, 3900).
@@ -1394,6 +1404,7 @@ function aplicarIA(it, r, minimo) {
   it.colores = normalizarOpciones(r.colores || (r.color ? [{ color: r.color, prob: 1 }] : []), NOMBRES_COLOR, 'color');
   if (!it.tocado.has('tipo') && it.tipos[0]) it.tipo = it.tipos[0].v;
   if (!it.tocado.has('color') && it.colores[0]) it.color = it.colores[0].v;
+  if (!it.tocado.has('genero') && GENEROS.includes(r.genero)) it.genero = r.genero;
   let desc = typeof r.descripcion === 'string' ? r.descripcion.trim().slice(0, 50) : '';
   if (typeof r.marca === 'string' && r.marca.trim() && !normal(desc).includes(normal(r.marca))) desc = `${desc} ${r.marca.trim()}`.trim();
   it.descIA = mayus(desc);
@@ -1482,7 +1493,8 @@ function htmlCola() {
         <p class="resultado" id="ganPrev" aria-live="polite"></p>
       </section>
       <section class="paso"><h2><span class="num" aria-hidden="true">2</span> Talla</h2><div id="tallaOpciones"></div></section>
-      <section class="paso"><h2><span class="num" aria-hidden="true">3</span> ¿Qué es?</h2><div id="tipoOpciones"></div></section>
+      <section class="paso"><h2><span class="num" aria-hidden="true">3</span> ¿Qué es?</h2><div id="tipoOpciones"></div>
+        <p class="etq mt">¿Para quién es?</p><div class="segmento" role="group" aria-label="Para quién es" id="generoOpciones"></div></section>
       <section class="paso"><h2><span class="num" aria-hidden="true">4</span> Color</h2><div id="colorOpciones"></div></section>
       <section class="paso">
         <div class="campo sin-margen"><label for="fDesc">Nombre en la etiqueta</label><input id="fDesc" autocomplete="off" maxlength="50"></div>
@@ -1569,6 +1581,7 @@ function pintarPartesItem(partes = { talla: true, tipo: true, color: true }) {
   if (partes.talla && libre('tallaOpciones')) $('#tallaOpciones').innerHTML = htmlTallaOpciones(it);
   if (partes.tipo && libre('tipoOpciones')) $('#tipoOpciones').innerHTML = htmlOpcionesIA(it, 'tipo');
   if (partes.color && libre('colorOpciones')) $('#colorOpciones').innerHTML = htmlOpcionesIA(it, 'color');
+  const go = $('#generoOpciones'); if (go) go.innerHTML = GENEROS.map(g => `<button type="button" data-accion="elegir-genero" data-valor="${g}" aria-pressed="${generoDe(it) === g}">${g}</button>`).join('');
   const ia = $('#iaEstado'); if (ia) ia.innerHTML = htmlIAEstado(it);
   const setv = (id, v) => { const el = $('#' + id); if (el && document.activeElement !== el) el.value = v; };
   setv('fPrecio', it.precio || '');
@@ -1627,7 +1640,7 @@ async function guardarItem() {
   catch (e) { botones.forEach(b => { b.disabled = false; }); toast('No se pudo crear el código. Revise el internet.', 'mal'); return; }
   const p = {
     id: nuevoId('p'), codigo, tipo, descripcion: descDe({ ...it, tipo }).trim() || tipo, talla: String(it.talla || '').trim(),
-    color: it.color || '', compraId: c ? c.id : '', costo: costoItem(it), costoFijo: !c, precio: it.precio,
+    color: it.color || '', genero: generoDe(it), compraId: c ? c.id : '', costo: costoItem(it), costoFijo: !c, precio: it.precio,
     estado: 'disponible', creada: Date.now(), foto: it.foto || '', impresa: false, precioVenta: null, fechaVenta: null, ventaId: null,
   };
   const ok = await escribir(() => backend.ponerPrenda(p));
@@ -2018,10 +2031,16 @@ function coincideOrigen(p, o) {
   if (o.startsWith('t:')) { const c = compraPorId(p.compraId); return !!c && c.tiendaId === id; }
   return true;
 }
-function prendasFiltradas(sinTipo) {
+const precioDe = p => p.estado === 'vendida' ? (p.precioVenta || 0) : (p.precio || 0);
+const enRango = (p, min, max) => precioDe(p) >= (min || 0) && (!max || precioDe(p) <= max);
+// sin: el filtro que no se aplica, para contar cuántas habría en cada opción de ese filtro
+function prendasFiltradas(sin) {
   let ps = S.prendas;
   if (filtro.estado !== 'todas') ps = ps.filter(p => p.estado === filtro.estado);
-  if (filtro.tipo && !sinTipo) ps = ps.filter(p => p.tipo === filtro.tipo);
+  if (filtro.tipo && sin !== 'tipo') ps = ps.filter(p => p.tipo === filtro.tipo);
+  if (filtro.genero && sin !== 'genero') ps = ps.filter(p => generoDe(p) === filtro.genero);
+  if (filtro.color && sin !== 'color') ps = ps.filter(p => p.color === filtro.color);
+  if ((filtro.pmin || filtro.pmax) && sin !== 'precio') ps = ps.filter(p => enRango(p, filtro.pmin, filtro.pmax));
   if (filtro.origen) ps = ps.filter(p => coincideOrigen(p, filtro.origen));
   if (filtro.viejas) ps = ps.filter(p => p.estado === 'disponible' && diasDesde(p.creada) >= 30);
   if (filtro.q) ps = ps.filter(p => coincide(p, filtro.q));
@@ -2031,12 +2050,33 @@ function prendasFiltradas(sinTipo) {
 function pintarChipsTipo() {
   const el = $('#chipsTipoF');
   if (!el) return;
-  const base = prendasFiltradas(true);
+  const base = prendasFiltradas('tipo');
   const cuentas = {};
   for (const p of base) cuentas[p.tipo] = (cuentas[p.tipo] || 0) + 1;
   const tipos = TIPOS.filter(t => cuentas[t] || t === filtro.tipo);
   el.innerHTML = `<button type="button" class="chip" data-accion="filtro-tipo" data-valor="" aria-pressed="${!filtro.tipo}">Todos<small>${nf.format(base.length)}</small></button>`
     + tipos.map(t => `<button type="button" class="chip" data-accion="filtro-tipo" data-valor="${esc(t)}" aria-pressed="${filtro.tipo === t}">${esc(t)}<small>${nf.format(cuentas[t] || 0)}</small></button>`).join('');
+}
+const filtrosExtra = () => [filtro.genero, filtro.color, filtro.pmin || filtro.pmax].filter(Boolean).length;
+function pintarFiltrosExtra() {
+  const el = $('#filtrosExtra');
+  if (!el) return;
+  const cuenta = (sin, f) => prendasFiltradas(sin).filter(f).length;
+  const chip = (accion, valor, texto, n, activo, extra = '') => `<button type="button" class="chip${extra ? ' chip-color' : ''}" data-accion="${accion}" data-valor="${esc(valor)}" aria-pressed="${activo}">${extra}${esc(texto)}<small>${nf.format(n)}</small></button>`;
+  $('#chipsGenero').innerHTML = chip('filtro-genero', '', 'Todos', prendasFiltradas('genero').length, !filtro.genero)
+    + GENEROS.map(g => chip('filtro-genero', g, g, cuenta('genero', p => generoDe(p) === g), filtro.genero === g)).join('');
+  const baseColor = prendasFiltradas('color');
+  const colores = NOMBRES_COLOR.filter(c => c === filtro.color || baseColor.some(p => p.color === c));
+  $('#chipsColorF').innerHTML = chip('filtro-color', '', 'Todos', baseColor.length, !filtro.color)
+    + colores.map(c => chip('filtro-color', c, c, baseColor.filter(p => p.color === c).length, filtro.color === c, `<span class="muestra" style="background:${muestraColor(c)}"></span>`)).join('');
+  const basePrecio = prendasFiltradas('precio');
+  $('#chipsPrecioF').innerHTML = chip('filtro-precio', '', 'Todos', basePrecio.length, !filtro.pmin && !filtro.pmax)
+    + RANGOS_PRECIO.map(([a, b, t]) => chip('filtro-precio', `${a}-${b}`, t, basePrecio.filter(p => enRango(p, a, b)).length, filtro.pmin === a && filtro.pmax === b)).join('');
+  const setv = (id, v) => { const i = $('#' + id); if (i && document.activeElement !== i) i.value = v || ''; };
+  setv('fPmin', filtro.pmin); setv('fPmax', filtro.pmax);
+  const n = filtrosExtra();
+  $('#cuentaFiltrosExtra').textContent = n ? ` (${n} ${n === 1 ? 'activo' : 'activos'})` : '';
+  $('#quitarFiltros').hidden = !n;
 }
 function textoOrigen() {
   const o = filtro.origen;
@@ -2547,6 +2587,9 @@ function abrirEditar(id) {
     </div>
     <div class="dos">
       <div class="campo"><label for="eTalla">Talla</label><input id="eTalla" autocomplete="off" value="${esc(p.talla)}"></div>
+      <div class="campo"><label for="eGenero">Para</label><select id="eGenero">${GENEROS.map(g => `<option ${g === generoDe(p) ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
+    </div>
+    <div class="dos">
       <div class="campo"><label for="eCosto">Le costó</label><div class="dinero"><input id="eCosto" inputmode="numeric" pattern="[0-9]*" value="${costoDe(p)}"></div></div>
     </div>
     <div class="campo"><label for="eCompra">Compra</label><select id="eCompra">${opcionesCompra(p.compraId)}</select></div>
@@ -2564,7 +2607,7 @@ async function guardarEdicion(id, btn) {
   const compraId = $('#eCompra').value;
   const cambios = {
     descripcion: $('#eDesc').value.trim() || $('#eTipo').value, tipo: $('#eTipo').value,
-    talla: $('#eTalla').value.trim(), color: $('#eColor').value, compraId, precio,
+    talla: $('#eTalla').value.trim(), color: $('#eColor').value, genero: $('#eGenero').value, compraId, precio,
   };
   if (costoNuevo !== costoDe(p) || !compraPorId(compraId)) { cambios.costo = costoNuevo; cambios.costoFijo = true; }
   if (precio !== p.precio) cambios.impresa = false;
@@ -2873,10 +2916,23 @@ const VISTAS = {
           <div id="selOrigen"></div>
         </div>
         <div class="chips filtro-tipos" id="chipsTipoF" role="group" aria-label="Tipo de prenda"></div>
+        <details class="mas-filtros" id="filtrosExtra" ${filtrosExtra() ? 'open' : ''}>
+          <summary>Más filtros<span id="cuentaFiltrosExtra"></span></summary>
+          <p class="etq">Para quién</p><div class="chips" id="chipsGenero" role="group" aria-label="Para quién"></div>
+          <p class="etq">Color</p><div class="chips" id="chipsColorF" role="group" aria-label="Color"></div>
+          <p class="etq">Precio</p><div class="chips" id="chipsPrecioF" role="group" aria-label="Rango de precio"></div>
+          <div class="dos">
+            <div class="campo"><label for="fPmin">Desde ₡</label><div class="dinero"><input id="fPmin" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0"></div></div>
+            <div class="campo"><label for="fPmax">Hasta ₡</label><div class="dinero"><input id="fPmax" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Sin límite"></div></div>
+          </div>
+          <button type="button" class="btn btn-sec" data-accion="quitar-filtros" id="quitarFiltros" hidden>Quitar estos filtros</button>
+        </details>
         <div id="avisosPrendas"></div>
         <p class="nota" id="cuentaPrendas" aria-live="polite"></p>
         <div id="listaPrendas"></div>`;
-      $('#qPrendas').addEventListener('input', e => { filtro.q = e.target.value; filtro.mostrar = 60; pintarChipsTipo(); pintarListaPrendas(); });
+      $('#qPrendas').addEventListener('input', e => { filtro.q = e.target.value; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); });
+      const rango = () => { filtro.pmin = num($('#fPmin').value); filtro.pmax = num($('#fPmax').value); filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); };
+      $('#fPmin').addEventListener('input', rango); $('#fPmax').addEventListener('input', rango);
     },
     update() {
       const nD = disponibles().length, nV = vendidas().length;
@@ -2884,6 +2940,7 @@ const VISTAS = {
       $$('.segmento [data-estado]').forEach(b => { b.textContent = textos[b.dataset.estado]; b.setAttribute('aria-pressed', String(b.dataset.estado === filtro.estado)); });
       pintarSelectorOrigen();
       pintarChipsTipo();
+      pintarFiltrosExtra();
       const pend = disponibles().filter(p => !p.impresa);
       const viejas = disponibles().filter(p => diasDesde(p.creada) >= 30);
       $('#avisosPrendas').innerHTML =
@@ -2974,8 +3031,8 @@ document.addEventListener('click', async e => {
     case 'guardar-compra': guardarCompra(el); break;
     case 'nombre-rapido': { const n = $('#cNombre'); if (n) n.value = el.textContent; break; }
     case 'agregar-de-compra': cerrarHoja(); cola.compraId = id; recalcularPreciosCola(); ir('agregar'); break;
-    case 'ver-prendas-compra': cerrarHoja(); Object.assign(filtro, { origen: 'c:' + id, estado: 'todas', tipo: '', q: '', viejas: false, mostrar: 60 }); ir('prendas'); break;
-    case 'ver-prendas-tienda': cerrarHoja(); Object.assign(filtro, { origen: 't:' + id, estado: 'todas', tipo: '', q: '', viejas: false, mostrar: 60 }); ir('prendas'); break;
+    case 'ver-prendas-compra': cerrarHoja(); Object.assign(filtro, { origen: 'c:' + id, estado: 'todas', tipo: '', q: '', viejas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); ir('prendas'); break;
+    case 'ver-prendas-tienda': cerrarHoja(); Object.assign(filtro, { origen: 't:' + id, estado: 'todas', tipo: '', q: '', viejas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); ir('prendas'); break;
     case 'compra-tienda':
       if (hojaCtx) { hojaCtx.tiendaId = hojaCtx.tiendaId === valor && !hojaCtx.tiendaNueva ? '' : valor; hojaCtx.tiendaNueva = false; pintarChipsTiendaCompra(); }
       break;
@@ -3004,7 +3061,11 @@ document.addEventListener('click', async e => {
       });
       break;
     // filtros
-    case 'filtro-tipo': filtro.tipo = valor || ''; filtro.mostrar = 60; pintarChipsTipo(); pintarListaPrendas(); break;
+    case 'filtro-tipo': filtro.tipo = valor || ''; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); break;
+    case 'filtro-genero': filtro.genero = valor || ''; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); break;
+    case 'filtro-color': filtro.color = valor || ''; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); break;
+    case 'filtro-precio': { const [a, b] = (valor || '0-0').split('-').map(Number); filtro.pmin = a; filtro.pmax = b; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); break; }
+    case 'quitar-filtros': Object.assign(filtro, { genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); break;
     case 'filtro-origen': abrirSelectorOrigen(); break;
     case 'elegir-compra-cola': abrirSelectorCompra(); break;
     case 'etiquetas-compra': {
@@ -3025,6 +3086,7 @@ document.addEventListener('click', async e => {
       it.tipo = valor; it.tocado.add('tipo'); it.verTipos = false;
       pintarPartesItem(); break;
     case 'elegir-color': if (!it) break; it.color = valor; it.tocado.add('color'); it.verColores = false; pintarPartesItem({ color: true }); break;
+    case 'elegir-genero': if (!it) break; it.genero = valor; it.tocado.add('genero'); pintarPartesItem({}); break;
     case 'elegir-talla': if (!it) break; it.talla = it.talla === valor ? '' : valor; it.tocado.add('talla'); pintarPartesItem({ talla: true }); break;
     case 'ver-todos': if (!it) break; if (valor === 'tipo') it.verTipos = true; else it.verColores = true; pintarPartesItem({ tipo: valor === 'tipo', color: valor === 'color' }); break;
     case 'precio-rapido': if (!it) break; it.precio = Number(valor); it.tocado.add('precio'); { const f = $('#fPrecio'); if (f) f.value = it.precio; } pintarPrecioItem(); break;
@@ -3089,7 +3151,7 @@ document.addEventListener('click', async e => {
         if (await escribir(() => backend.quitarPrenda(id))) { cerrarHoja(); toast('Prenda borrada.'); }
       });
       break;
-    case 'ver-viejas': Object.assign(filtro, { estado: 'disponible', viejas: true, tipo: '', origen: '', q: '', mostrar: 60 }); ir('prendas'); break;
+    case 'ver-viejas': Object.assign(filtro, { estado: 'disponible', viejas: true, tipo: '', origen: '', q: '', genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); ir('prendas'); break;
     case 'alternar-viejas': filtro.viejas = !filtro.viejas; if (filtro.viejas) filtro.estado = 'disponible'; filtro.mostrar = 60; VISTAS.prendas.update(); break;
     case 'ver-mas': filtro.mostrar += 60; pintarListaPrendas(); break;
     // hoy

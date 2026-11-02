@@ -9,7 +9,7 @@
 //   --precio-uno        ponerles ₡1 a todas en lugar del precio de la foto
 //   --preciso           usar el modelo preciso de la IA (más lento)
 //   --datos archivo.json  usar datos ya revisados en lugar de la IA: { "foto.jpg": { tipo, color, descripcion, talla, precio } }
-//                         y, para corregir prendas que ya existen: { "codigo:000007": { tipo, color, descripcion, talla } }
+//                         y, para corregir prendas que ya existen: { "codigo:000007": { tipo, color, genero, descripcion, talla } }
 //   --sitio URL         dirección de la tienda publicada (por defecto https://joelvl.github.io/Tienda/)
 //
 // Si se corta, se puede volver a correr: las fotos ya subidas quedan anotadas en
@@ -34,6 +34,7 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const lista = nombre => new Function(`return ${html.match(new RegExp(`const ${nombre} = (\\[[\\s\\S]*?\\]);\\n`))[1]}`)();
 const TIPOS = lista("TIPOS");
 const COLORES = lista("COLORES").map(c => c[0]);
+const GENEROS = lista("GENEROS");
 const normal = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 const elegir = (v, validos) => validos.find(t => normal(t) === normal(v));
 
@@ -110,8 +111,8 @@ const compra = pedida ? compras.find(c => normal(c.nombre) === normal(pedida)) |
 if (!compra) { console.error(`No hay una compra "${pedida}". Compras: ${compras.map(c => c.nombre).join(", ")}`); process.exit(1); }
 const yaTiene = (await api(`/rest/v1/prendas?select=id&compra_id=eq.${encodeURIComponent(compra.id)}`)).length;
 console.log(`\nCompra: «${compra.nombre}» del ${new Date(Number(compra.fecha)).toLocaleDateString("es-CR")} (ya tiene ${yaTiene} prendas).`);
-console.log(`Se van a subir ${pendientes.length} prendas, ${precioUno ? "todas a ₡1" : "con el precio de la foto (₡1 si no trae)"}.`);
-if (correcciones.length) console.log(`Y se corrigen ${correcciones.length} prendas que ya estaban (tipo, nombre, color y talla; el precio no se toca).`);
+if (pendientes.length) console.log(`Se van a subir ${pendientes.length} prendas, ${precioUno ? "todas a ₡1" : "con el precio de la foto (₡1 si no trae)"}.`);
+if (correcciones.length) console.log(`${pendientes.length ? "Y se" : "Se"} corrigen ${correcciones.length} prendas que ya estaban (el precio no se toca).`);
 if (!/^s/i.test(await preguntar("¿Seguir? (s/n): "))) { console.log("No se subió nada."); process.exit(0); }
 
 // Costo por prenda como en la página: fijo si la compra tiene cantidad; si no, se reparte entre todas
@@ -120,6 +121,7 @@ const costoPrenda = () => compra.cantidad > 0 ? Math.round(compra.costo / compra
 const PROMPT = `Usted ayuda a una tienda de ropa en Costa Rica. La foto es de catálogo y muestra UNA prenda (a veces en varias vistas: frente, espalda, detalle). Suele traer impresos la talla y el precio.
 Responda solo con un objeto JSON con estas claves:
 "tipo": exactamente uno de ${JSON.stringify(TIPOS)}. "Enterizo" es de una sola pieza que une arriba con pantalón o short (mono, jumpsuit, romper). "Conjunto" son dos piezas que hacen juego (top con short, pantalón o enagua). En Costa Rica la falda se dice "Enagua". "Saco" incluye chaquetas, blazers y abrigos; un traje de saco y pantalón es "Conjunto".
+"genero": para quién es, exactamente uno de ${JSON.stringify(GENEROS)} ("Unisex" si sirve igual para hombre y mujer).
 "color": el color principal, exactamente uno de ${JSON.stringify(COLORES)}. Use "Estampado" si tiene diseño o muchos colores.
 "descripcion": nombre corto en español para la etiqueta, máximo 4 palabras, sin talla ni precio (ej. "Vestido largo de lentejuelas", "Enterizo negro manga larga").
 "talla": la talla impresa en la foto (ej. "M", "XL", "2XL" escríbalo "XXL"). Si trae varias, júntelas con "/" (ej. "S/M"). Si no trae, null.
@@ -146,6 +148,7 @@ for (const f of pendientes) {
       descripcion: String(ia.descripcion || tipo).trim().split(/\s+/).slice(0, 6).join(" ").slice(0, 60),
       talla: ia.talla ? String(ia.talla).trim().toUpperCase().replace(/^2XL$/, "XXL").slice(0, 20) : "",
       color: elegir(ia.color, COLORES) || "",
+      genero: elegir(ia.genero, GENEROS) || "Mujer",
       compra_id: compra.id, costo: costoPrenda(), costo_fijo: false,
       precio: !precioUno && precioFoto >= 100 && precioFoto <= 500000 ? precioFoto : 1,
       estado: "disponible", creada: creada++, foto: `data:image/jpeg;base64,${jpeg(f, 280, 60)}`, impresa: false,
@@ -162,11 +165,16 @@ for (const f of pendientes) {
   }
 }
 for (const [k, x] of correcciones) {
-  const cambio = { tipo: elegir(x.tipo, TIPOS) || "Otro", color: elegir(x.color, COLORES) || "", descripcion: String(x.descripcion || "").slice(0, 60), talla: x.talla ? String(x.talla).slice(0, 20) : "" };
-  if (!cambio.descripcion) delete cambio.descripcion;
+  // Solo se cambia lo que trae el archivo
+  const cambio = {};
+  if (x.tipo !== undefined) cambio.tipo = elegir(x.tipo, TIPOS) || "Otro";
+  if (x.color !== undefined) cambio.color = elegir(x.color, COLORES) || "";
+  if (x.genero !== undefined) cambio.genero = elegir(x.genero, GENEROS) || "Mujer";
+  if (x.descripcion) cambio.descripcion = String(x.descripcion).slice(0, 60);
+  if (x.talla !== undefined) cambio.talla = x.talla ? String(x.talla).slice(0, 20) : "";
   try {
     await api(`/rest/v1/prendas?codigo=eq.${encodeURIComponent(k.slice(7))}`, { method: "PATCH", body: JSON.stringify(cambio), headers: { Prefer: "return=minimal" } });
-    console.log(`  corregida ${k.slice(7)}: ${cambio.descripcion || ""}, ${cambio.tipo}${cambio.talla ? `, talla ${cambio.talla}` : ""}`);
+    console.log(`  corregida ${k.slice(7)}: ${Object.entries(cambio).map(([c, v]) => `${c} ${v}`).join(", ")}`);
   } catch (e) { console.error(`  ${k.slice(7)}: no se pudo corregir (${e.message})`); }
 }
 rmSync(tmp, { recursive: true, force: true });
