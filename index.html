@@ -406,6 +406,11 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 .escaner-pie{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:#111;flex-wrap:wrap}
 .escaner-pie .btn{flex:1 1 220px}
 @media (prefers-reduced-motion:reduce){.escaner-marco{transition:none}}
+/* cámara para fotos de prendas: se ve completo lo que se va a guardar */
+.camara-video video{object-fit:contain}
+.camara-video::after{content:"";position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.camara-video.flash::after{opacity:.7;transition:none}
+@media (prefers-reduced-motion:reduce){.camara-video::after{transition:none}}
 
 /* ---------- inicio de sesión ---------- */
 .login{position:fixed;inset:0;z-index:80;background:var(--fondo);display:grid;place-items:center;padding:20px;overflow:auto}
@@ -503,6 +508,16 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
   <p class="escaner-msg" id="escMsg" aria-live="assertive"></p>
   <div class="escaner-pie"><span id="escCuenta"></span><button type="button" class="btn btn-gana" data-accion="cerrar-escaner">Listo, ver la venta</button></div>
 </div>
+<div class="escaner" id="camara" role="dialog" aria-modal="true" aria-label="Tomar fotos" hidden>
+  <div class="escaner-cab"><b>Tomar fotos</b><button class="cerrar" type="button" data-accion="cerrar-camara" id="btnCerrarCam"></button></div>
+  <div class="escaner-video camara-video" id="camVivo"><video id="camVideo" playsinline muted autoplay></video></div>
+  <div class="escaner-foto" id="camFoto" hidden>
+    <p>No se pudo abrir la cámara aquí. Use la cámara del teléfono.</p>
+    <label class="btn btn-marca btn-gigante"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos><span id="camFotoIco"></span><span>Tomar foto</span></label>
+  </div>
+  <p class="escaner-msg" id="camMsg" aria-live="polite"></p>
+  <div class="escaner-pie"><button type="button" class="btn btn-marca" data-accion="disparar" id="btnDisparar"></button><button type="button" class="btn btn-gana" data-accion="cerrar-camara" id="btnListoCam">Listo</button></div>
+</div>
 <div class="login" id="login" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div id="zonaImpresion"></div>
@@ -572,6 +587,8 @@ const ICON = {
   abajo: svg('<path d="m6 9 6 6 6-6"/>'),
   tienda: svg('<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M9.5 20v-6h5v6"/>'),
   salir: svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'),
+  mas: svg('<path d="M12 5v14M5 12h14"/>'),
+  persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
 };
 
 /* ================= DATOS FIJOS ================= */
@@ -601,7 +618,7 @@ function tallasPara(tipo) {
 }
 
 /* ================= ESTADO ================= */
-const S = { prendas: [], compras: [], tiendas: [], config: { ...CONFIG_BASE }, listo: false, modo: 'cargando', soloLectura: false };
+const S = { prendas: [], compras: [], tiendas: [], clientes: [], config: { ...CONFIG_BASE }, listo: false, modo: 'cargando', soloLectura: false };
 const cap = { sample: null, sampleImagenes: false, downloads: null };
 let backend = null;
 let vista = 'hoy';
@@ -615,8 +632,10 @@ let pestanaCompras = 'compras';
 const cola = { items: [], i: 0, compraId: null, guardadas: [], cargando: 0 };
 const periodo = { modo: 'semana', offset: 0 };
 let carrito = [];
+let clienteVenta = '';
+try { clienteVenta = localStorage.getItem('mitienda:cliente') || ''; } catch (e) { clienteVenta = ''; }
 try { carrito = JSON.parse(localStorage.getItem('mitienda:carrito')) || []; if (!Array.isArray(carrito)) carrito = []; } catch (e) { carrito = []; }
-const guardarCarritoLocal = () => { try { localStorage.setItem('mitienda:carrito', JSON.stringify(carrito)); } catch (e) { /* opcional */ } };
+const guardarCarritoLocal = () => { try { localStorage.setItem('mitienda:carrito', JSON.stringify(carrito)); localStorage.setItem('mitienda:cliente', clienteVenta); } catch (e) { /* opcional */ } };
 
 /* ================= TEMA CLARO / OSCURO ================= */
 const temaActual = () => document.documentElement.getAttribute('data-theme') === 'dark' ? 'oscuro' : 'claro';
@@ -640,15 +659,16 @@ function usar(nombre) {
 }
 
 /* ================= ALMACENAMIENTO ================= */
-const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId'];
+const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel'];
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
+const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
 const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa'];
 const tomar = (o, campos) => { const r = {}; for (const k of campos) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
 // Dentro de Claude: base de datos compartida del artifact
 class NubeBackend {
-  constructor(db) { this.db = db; this.p = { disp: null, vend: null, comp: null, tien: null, conf: null }; }
+  constructor(db) { this.db = db; this.p = { disp: null, vend: null, comp: null, tien: null, clie: null, conf: null }; }
   start() {
     const err = e => { console.warn('db', e); toast('Se perdió la conexión con sus datos. Recargue la página.', 'mal'); };
     const lista = s => s.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -657,6 +677,7 @@ class NubeBackend {
     pr.where('estado', '==', 'vendida').orderBy('fechaVenta', 'desc').limit(1000).onSnapshot(s => { this.p.vend = lista(s); this.emitir(); }, err);
     this.db.collection('compras').orderBy('fecha', 'desc').limit(500).onSnapshot(s => { this.p.comp = lista(s); this.emitir(); }, err);
     this.db.collection('tiendas').orderBy('creada', 'desc').limit(300).onSnapshot(s => { this.p.tien = lista(s); this.emitir(); }, err);
+    this.db.collection('clientes').orderBy('nombre').limit(2000).onSnapshot(s => { this.p.clie = s.docs.map(d => ({ ...d.data(), telefono: d.id })); this.emitir(); }, err);
     this.db.doc('config/tienda').onSnapshot(s => { this.p.conf = s.exists ? { ...s.data() } : {}; this.emitir(); }, err);
   }
   emitir() {
@@ -664,8 +685,9 @@ class NubeBackend {
     S.prendas = [...(p.disp || []), ...(p.vend || [])];
     S.compras = p.comp || [];
     S.tiendas = p.tien || [];
+    S.clientes = p.clie || [];
     S.config = { ...CONFIG_BASE, ...(p.conf || {}) };
-    S.listo = p.disp !== null && p.vend !== null && p.comp !== null && p.tien !== null && p.conf !== null;
+    S.listo = p.disp !== null && p.vend !== null && p.comp !== null && p.tien !== null && p.clie !== null && p.conf !== null;
     alCambiarDatos();
   }
   ponerPrenda(x) { const { id, ...d } = tomar(x, CAMPOS_PRENDA); return this.db.collection('prendas').doc(id).set(clon(d)); }
@@ -675,13 +697,15 @@ class NubeBackend {
   quitarCompra(id) { return this.db.doc('compras/' + id).delete(); }
   ponerTienda(x) { const { id, ...d } = tomar(x, CAMPOS_TIENDA); return this.db.collection('tiendas').doc(id).set(clon(d)); }
   quitarTienda(id) { return this.db.doc('tiendas/' + id).delete(); }
+  ponerCliente(x) { const { telefono, ...d } = tomar(x, CAMPOS_CLIENTE); return this.db.collection('clientes').doc(telefono).set(clon(d)); }
+  quitarCliente(tel) { return this.db.doc('clientes/' + tel).delete(); }
   ponerConfig(c) { return this.db.doc('config/tienda').set(clon(tomar(c, CAMPOS_CONFIG))); }
   async importar(d, avance) {
-    const todo = [...(d.tiendas || []).map(t => ['t', t]), ...d.compras.map(c => ['c', c]), ...d.prendas.map(p => ['p', p])];
+    const todo = [...(d.tiendas || []).map(t => ['t', t]), ...(d.clientes || []).map(x => ['k', x]), ...d.compras.map(c => ['c', c]), ...d.prendas.map(p => ['p', p])];
     for (let i = 0; i < todo.length; i++) {
       const [t, x] = todo[i];
       for (let intento = 0; ; intento++) {
-        try { await (t === 't' ? this.ponerTienda(x) : t === 'c' ? this.ponerCompra(x) : this.ponerPrenda(x)); break; }
+        try { await (t === 't' ? this.ponerTienda(x) : t === 'k' ? this.ponerCliente(x) : t === 'c' ? this.ponerCompra(x) : this.ponerPrenda(x)); break; }
         catch (e) { if (intento < 4 && e && (e.code === 'resource_exhausted' || e.code === 'unavailable')) { await espera(1500 * (intento + 1)); continue; } throw e; }
       }
       avance(i + 1, todo.length);
@@ -698,12 +722,14 @@ class LocalBackend {
     try { d = JSON.parse(localStorage.getItem(this.k)); } catch (e) { d = null; }
     this.d = d && typeof d === 'object' ? d : { prendas: {}, compras: {}, config: {} };
     if (!this.d.tiendas) this.d.tiendas = {};
+    if (!this.d.clientes) this.d.clientes = {};
   }
   start() { this.emitir(); }
   emitir() {
     S.prendas = Object.values(this.d.prendas).map(x => ({ ...x }));
     S.compras = Object.values(this.d.compras).map(x => ({ ...x })).sort((a, b) => b.fecha - a.fecha);
     S.tiendas = Object.values(this.d.tiendas).map(x => ({ ...x })).sort((a, b) => b.creada - a.creada);
+    S.clientes = Object.values(this.d.clientes).map(x => ({ ...x }));
     S.config = { ...CONFIG_BASE, ...this.d.config };
     S.listo = true;
     alCambiarDatos();
@@ -717,12 +743,15 @@ class LocalBackend {
   async actualizarPrenda(id, c) { if (!this.d.prendas[id]) throw { code: 'invalid_argument' }; Object.assign(this.d.prendas[id], clon(c)); this.guardar(); }
   async quitarPrenda(id) { delete this.d.prendas[id]; this.guardar(); }
   async ponerCompra(x) { this.d.compras[x.id] = clon(tomar(x, CAMPOS_COMPRA)); this.guardar(); }
-  async quitarCompra(id) { delete this.d.compras[id]; this.guardar(); }
+  async quitarCompra(id) { delete this.d.compras[id]; for (const p of Object.values(this.d.prendas)) if (p.compraId === id) p.compraId = ''; this.guardar(); }
   async ponerTienda(x) { this.d.tiendas[x.id] = clon(tomar(x, CAMPOS_TIENDA)); this.guardar(); }
-  async quitarTienda(id) { delete this.d.tiendas[id]; this.guardar(); }
+  async quitarTienda(id) { delete this.d.tiendas[id]; for (const c of Object.values(this.d.compras)) if (c.tiendaId === id) c.tiendaId = ''; this.guardar(); }
+  async ponerCliente(x) { this.d.clientes[x.telefono] = clon(tomar(x, CAMPOS_CLIENTE)); this.guardar(); }
+  async quitarCliente(tel) { delete this.d.clientes[tel]; for (const p of Object.values(this.d.prendas)) if (p.clienteTel === tel) p.clienteTel = ''; this.guardar(); }
   async ponerConfig(c) { this.d.config = clon(tomar(c, CAMPOS_CONFIG)); this.guardar(); }
   async importar(d, avance) {
     for (const t of d.tiendas || []) this.d.tiendas[t.id] = clon(tomar(t, CAMPOS_TIENDA));
+    for (const x of d.clientes || []) this.d.clientes[x.telefono] = clon(tomar(x, CAMPOS_CLIENTE));
     for (const c of d.compras) this.d.compras[c.id] = clon(tomar(c, CAMPOS_COMPRA));
     for (const p of d.prendas) this.d.prendas[p.id] = clon(tomar(p, CAMPOS_PRENDA));
     avance(1, 1); this.guardar();
@@ -737,7 +766,7 @@ function aFila(o, campos) {
   for (const k of campos) {
     if (o[k] === undefined) continue;
     let v = o[k];
-    if ((k === 'compraId' || k === 'tiendaId') && !v) v = null;
+    if ((k === 'compraId' || k === 'tiendaId' || k === 'clienteTel') && !v) v = null;
     if (k === 'cantidad' && !(v > 0)) v = null;
     r[snake(k)] = v;
   }
@@ -745,7 +774,7 @@ function aFila(o, campos) {
 }
 const deFila = r => { const o = {}; for (const k in r) o[camel(k)] = r[k]; return o; };
 class SupaBackend {
-  constructor(sb) { this.sb = sb; this.pr = new Map(); this.co = new Map(); this.ti = new Map(); this.cfg = {}; this.ultimaCarga = 0; }
+  constructor(sb) { this.sb = sb; this.pr = new Map(); this.co = new Map(); this.ti = new Map(); this.cl = new Map(); this.cfg = {}; this.ultimaCarga = 0; }
   async start() {
     try { await this.cargarTodo(); }
     catch (e) { console.warn(e); S.listo = true; alCambiarDatos(); toast('No se pudieron cargar sus datos. Revise el internet y recargue.', 'mal'); }
@@ -753,6 +782,7 @@ class SupaBackend {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'prendas' }, x => this.cambio('pr', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' }, x => this.cambio('co', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tiendas' }, x => this.cambio('ti', x))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, x => this.cambio('cl', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, x => this.cambio('cfg', x))
       .subscribe();
     document.addEventListener('visibilitychange', () => {
@@ -770,42 +800,54 @@ class SupaBackend {
     return filas;
   }
   async cargarTodo() {
-    const [p, c, t, cf] = await Promise.all([
-      this.todas('prendas', 'creada'), this.todas('compras', 'fecha'), this.todas('tiendas', 'creada'),
+    const [p, c, t, k, cf] = await Promise.all([
+      this.todas('prendas', 'creada'), this.todas('compras', 'fecha'), this.todas('tiendas', 'creada'), this.todas('clientes', 'creada'),
       this.sb.from('config').select('*').eq('id', 'tienda').maybeSingle(),
     ]);
     this.pr = new Map(p.map(r => [r.id, deFila(r)]));
     this.co = new Map(c.map(r => [r.id, deFila(r)]));
     this.ti = new Map(t.map(r => [r.id, deFila(r)]));
+    this.cl = new Map(k.map(r => [r.telefono, deFila(r)]));
     this.cfg = cf && cf.data ? deFila(cf.data) : {};
     this.ultimaCarga = Date.now();
     this.emitir();
   }
   cambio(t, x) {
+    const llave = t === 'cl' ? 'telefono' : 'id';
     if (t === 'cfg') { if (x.new && x.new.id) this.cfg = deFila(x.new); }
-    else if (x.eventType === 'DELETE') { if (x.old && x.old.id) this[t].delete(x.old.id); }
-    else if (x.new && x.new.id) this[t].set(x.new.id, deFila(x.new));
+    else if (x.eventType === 'DELETE') { if (x.old && x.old[llave]) this[t].delete(x.old[llave]); }
+    else if (x.new && x.new[llave]) this[t].set(x.new[llave], deFila(x.new));
     this.emitir();
   }
   emitir() {
     S.prendas = [...this.pr.values()];
     S.compras = [...this.co.values()].sort((a, b) => b.fecha - a.fecha);
     S.tiendas = [...this.ti.values()].sort((a, b) => b.creada - a.creada);
+    S.clientes = [...this.cl.values()];
     S.config = { ...CONFIG_BASE, ...tomar(this.cfg, CAMPOS_CONFIG) };
     S.listo = true;
     alCambiarDatos();
   }
   async ok(q) {
-    const { error } = await q;
+    const r = await q;
+    const { error } = r;
     if (error) throw { code: error.code === '23505' ? 'duplicado' : error.code === '42501' ? 'invalid_argument' : 'supa', message: error.message };
+    return r;
+  }
+  // Si la base de datos no deja borrar, Supabase no da error: solo no borra nada. Por eso se revisa.
+  async borrar(tabla, llave, valor) {
+    const { data } = await this.ok(this.sb.from(tabla).delete().eq(llave, valor).select(llave));
+    if (!data || !data.length) throw { code: 'sin_borrar', message: `no se borró ${tabla}/${valor}` };
   }
   async ponerPrenda(p) { await this.ok(this.sb.from('prendas').upsert(aFila(p, CAMPOS_PRENDA))); this.pr.set(p.id, { ...p }); this.emitir(); }
   async actualizarPrenda(id, c) { await this.ok(this.sb.from('prendas').update(aFila(c, CAMPOS_PRENDA)).eq('id', id)); const v = this.pr.get(id); if (v) this.pr.set(id, { ...v, ...c }); this.emitir(); }
-  async quitarPrenda(id) { await this.ok(this.sb.from('prendas').delete().eq('id', id)); this.pr.delete(id); this.emitir(); }
+  async quitarPrenda(id) { await this.borrar('prendas', 'id', id); this.pr.delete(id); this.emitir(); }
   async ponerCompra(c) { await this.ok(this.sb.from('compras').upsert(aFila(c, CAMPOS_COMPRA))); this.co.set(c.id, { ...c }); this.emitir(); }
-  async quitarCompra(id) { await this.ok(this.sb.from('compras').delete().eq('id', id)); this.co.delete(id); for (const [k, p] of this.pr) if (p.compraId === id) this.pr.set(k, { ...p, compraId: null }); this.emitir(); }
+  async quitarCompra(id) { await this.borrar('compras', 'id', id); this.co.delete(id); for (const [k, p] of this.pr) if (p.compraId === id) this.pr.set(k, { ...p, compraId: null }); this.emitir(); }
   async ponerTienda(t) { await this.ok(this.sb.from('tiendas').upsert(aFila(t, CAMPOS_TIENDA))); this.ti.set(t.id, { ...t }); this.emitir(); }
-  async quitarTienda(id) { await this.ok(this.sb.from('tiendas').delete().eq('id', id)); this.ti.delete(id); for (const [k, c] of this.co) if (c.tiendaId === id) this.co.set(k, { ...c, tiendaId: null }); this.emitir(); }
+  async quitarTienda(id) { await this.borrar('tiendas', 'id', id); this.ti.delete(id); for (const [k, c] of this.co) if (c.tiendaId === id) this.co.set(k, { ...c, tiendaId: null }); this.emitir(); }
+  async ponerCliente(x) { await this.ok(this.sb.from('clientes').upsert(aFila(x, CAMPOS_CLIENTE))); this.cl.set(x.telefono, { ...x }); this.emitir(); }
+  async quitarCliente(tel) { await this.borrar('clientes', 'telefono', tel); this.cl.delete(tel); for (const [k, p] of this.pr) if (p.clienteTel === tel) this.pr.set(k, { ...p, clienteTel: null }); this.emitir(); }
   async ponerConfig(c) { await this.ok(this.sb.from('config').upsert({ id: 'tienda', ...aFila(c, CAMPOS_CONFIG) })); this.cfg = { ...c }; this.emitir(); }
   async siguienteCodigo() {
     const { data, error } = await this.sb.rpc('siguiente_codigo');
@@ -813,10 +855,11 @@ class SupaBackend {
     return String(data);
   }
   async importar(d, avance) {
-    const tiendas = d.tiendas || [];
-    const total = tiendas.length + d.compras.length + d.prendas.length;
+    const tiendas = d.tiendas || [], clientes = d.clientes || [];
+    const total = tiendas.length + clientes.length + d.compras.length + d.prendas.length;
     let hechos = 0;
     if (tiendas.length) { await this.ok(this.sb.from('tiendas').upsert(tiendas.map(t => aFila(t, CAMPOS_TIENDA)))); hechos += tiendas.length; avance(hechos, total); }
+    if (clientes.length) { await this.ok(this.sb.from('clientes').upsert(clientes.map(x => aFila(x, CAMPOS_CLIENTE)))); hechos += clientes.length; avance(hechos, total); }
     for (let i = 0; i < d.compras.length; i += 200) {
       const lote = d.compras.slice(i, i + 200);
       await this.ok(this.sb.from('compras').upsert(lote.map(c => aFila(c, CAMPOS_COMPRA))));
@@ -844,6 +887,7 @@ async function escribir(fn) {
         c === 'resource_exhausted' ? 'Demasiados cambios seguidos. Espere unos segundos y vuelva a intentar.' :
         c === 'invalid_argument' ? 'No se pudo guardar. Puede que no tenga permiso para hacer cambios.' :
         c === 'duplicado' ? 'Ese código ya existe. Vuelva a intentar.' :
+        c === 'sin_borrar' ? 'No se pudo borrar: la base de datos no dio permiso. Avise a quien administra la tienda.' :
         'No se pudo guardar. Revise el internet y vuelva a intentar.', 'mal');
       return false;
     }
@@ -1210,17 +1254,24 @@ function nuevoItem(datos) {
   it.precio = sugerido(it);
   return it;
 }
-function cargarImagen(file) {
-  return new Promise((res, rej) => {
+// Con «max», la foto se abre ya reducida: una foto de 48 MP abierta completa ocupa ~190 MB
+// y en tablets con poca memoria Android cierra el navegador.
+async function cargarImagen(file, max) {
+  const img = await new Promise((res, rej) => {
     const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => { res(img); setTimeout(() => URL.revokeObjectURL(url), 2000); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen')); };
-    img.src = url;
+    const im = new Image();
+    im.onload = () => { res(im); setTimeout(() => URL.revokeObjectURL(url), 2000); };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen')); };
+    im.src = url;
   });
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!max || !window.createImageBitmap || Math.max(w, h) <= max) return img;
+  try { return await createImageBitmap(file, w >= h ? { resizeWidth: max, resizeQuality: 'high' } : { resizeHeight: max, resizeQuality: 'high' }); }
+  catch (e) { return img; }
 }
+const soltarImagen = img => { if (img && img.close) img.close(); };
 function lienzoDe(img, max, rot = 0) {
-  const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+  const w0 = img.naturalWidth || img.videoWidth || img.width, h0 = img.naturalHeight || img.videoHeight || img.height;
   const r = Math.min(1, max / Math.max(w0, h0));
   const w = Math.max(1, Math.round(w0 * r)), h = Math.max(1, Math.round(h0 * r));
   const c = document.createElement('canvas');
@@ -1231,11 +1282,16 @@ function lienzoDe(img, max, rot = 0) {
   g.drawImage(img, 0, 0, w, h);
   return c;
 }
-async function itemDesdeFoto(file) {
-  const img = await cargarImagen(file);
+async function itemDesdeImagen(img) {
   const grande = lienzoDe(img, 1024);
   const blob = await new Promise(r => grande.toBlob(r, 'image/jpeg', 0.82));
-  return nuevoItem({ vista: grande.toDataURL('image/jpeg', 0.72), foto: lienzoDe(img, 280).toDataURL('image/jpeg', 0.6), blob });
+  if (!blob) throw new Error('imagen');
+  return nuevoItem({ vista: grande.toDataURL('image/jpeg', 0.72), foto: lienzoDe(grande, 280).toDataURL('image/jpeg', 0.6), blob });
+}
+async function itemDesdeFoto(file) {
+  const img = await cargarImagen(file, 1024);
+  try { return await itemDesdeImagen(img); }
+  finally { soltarImagen(img); }
 }
 async function agregarFotos(files) {
   const lista = Array.from(files || []).filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || ''));
@@ -1385,7 +1441,7 @@ function htmlAgregarInicio() {
       <p class="nota mt" id="notaCompra">${esc(notaCompra())}</p>
     </div>
     <div class="inicio-fotos">
-      <label class="btn btn-marca btn-gigante"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos>${ICON.camara}<span>Tomar foto</span></label>
+      <button type="button" class="btn btn-marca btn-gigante" data-accion="camara">${ICON.camara}<span>Tomar fotos</span></button>
       <label class="btn btn-sec btn-gigante"><input type="file" accept="image/*" multiple class="oculto" data-fotos>${ICON.galeria}<span>Elegir varias fotos de la galería</span></label>
     </div>
     ${cola.cargando ? `<p class="ia"><span class="girando" aria-hidden="true"></span> Cargando ${plural(cola.cargando, 'foto', 'fotos')}…</p>` : ''}
@@ -1437,7 +1493,7 @@ function htmlCabCola() {
     <div class="cola-acciones">
       <div class="campo compacto"><span class="etq">Compra</span><div id="selCompraCola">${htmlSelectorCompra()}</div></div>
       <label class="btn btn-sec"><input type="file" accept="image/*" multiple class="oculto" data-fotos>${ICON.galeria} Más fotos</label>
-      <label class="btn btn-sec"><input type="file" accept="image/*" capture="environment" class="oculto" data-fotos>${ICON.camara} Otra foto</label>
+      <button type="button" class="btn btn-sec" data-accion="camara">${ICON.camara} Otra foto</button>
     </div>`;
 }
 function htmlMiniaturas() {
@@ -1666,6 +1722,7 @@ function pintarCarrito(forzar) {
       <hr>
       <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div>
     </div>
+    <div class="campo mt">${(() => { const x = clientePorTel(clienteVenta); return htmlSelector('Cliente', x ? x.nombre : 'Sin cliente (toque para elegir)', x ? 'Tel. ' + telBonito(x.telefono) : '', 'elegir-cliente'); })()}</div>
     <div class="carrito-botones">
       <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-venta">Guardar venta</button>
@@ -1689,17 +1746,19 @@ async function guardarVenta(btn) {
   const sinPrecio = items.find(x => !(x.precio > 0));
   if (sinPrecio) { toast(`Falta el precio de: ${sinPrecio.p.descripcion}.`, 'mal'); return; }
   const ventaId = nuevoId('v'), t = Date.now();
+  const cli = clientePorTel(clienteVenta), clienteTel = cli ? cli.telefono : null;
   const total = suma(items, x => x.precio), gan = suma(items, x => x.precio - costoDe(x.p));
   btn.disabled = true;
   for (const x of items) {
-    const ok = await escribir(() => backend.actualizarPrenda(x.id, { estado: 'vendida', precioVenta: x.precio, fechaVenta: t, ventaId }));
+    const ok = await escribir(() => backend.actualizarPrenda(x.id, { estado: 'vendida', precioVenta: x.precio, fechaVenta: t, ventaId, clienteTel }));
     if (!ok) { btn.disabled = false; pintarCarrito(true); return; }
     carrito = carrito.filter(c => c.id !== x.id);
     guardarCarritoLocal();
   }
+  clienteVenta = ''; guardarCarritoLocal();
   pintarCarrito(true);
   renderResultadosVenta();
-  toast(`Venta guardada: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}. ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`, gan >= 0 ? 'bien' : '');
+  toast(`Venta guardada${cli ? ` para ${cli.nombre}` : ''}: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}. ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`, gan >= 0 ? 'bien' : '');
 }
 function renderResultadosVenta() {
   const cont = $('#resVenta');
@@ -1733,7 +1792,7 @@ function ventaPorCodigo(v) {
   else if (!res.length) toast('No encontramos esa prenda. Revise el código.', 'mal');
 }
 async function deshacerVenta(id) {
-  const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null }));
+  const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null }));
   if (ok) { cerrarHoja(); toast('Venta deshecha. La prenda volvió a la tienda.'); }
 }
 
@@ -1856,12 +1915,14 @@ async function escanearFoto(file) {
   pintarEscaner('Leyendo el código…');
   try {
     await prepararDecodificador();
-    const img = await cargarImagen(file);
+    const img = await cargarImagen(file, 1600);
     let t = null;
-    for (const max of [1600, 1000]) {
-      for (const rot of [0, 90]) { t = await decodificarLienzo(lienzoDe(img, max, rot)); if (t) break; }
-      if (t) break;
-    }
+    try {
+      for (const max of [1600, 1000]) {
+        for (const rot of [0, 90]) { t = await decodificarLienzo(lienzoDe(img, max, rot)); if (t) break; }
+        if (t) break;
+      }
+    } finally { soltarImagen(img); }
     if (t) manejarCodigo(t);
     else { pitar(false); pintarEscaner('No se pudo leer el código. Acérquese más, que se vea nítido y sin reflejo, o escriba el número.', 'mal'); }
   } catch (e) { pintarEscaner('No se pudo leer la foto. Pruebe otra vez.', 'mal'); }
@@ -1874,6 +1935,65 @@ function cerrarEscaner() {
   $('#escaner').hidden = true;
   if ($('#hoja').hidden) document.body.classList.remove('con-hoja');
   if (vista === 'vender') pintarCarrito(true);
+}
+
+// Cámara dentro de la página para fotos de prendas. Con <input capture> Android abre la app
+// de cámara y, si le falta memoria, cierra el navegador y la foto se pierde.
+const CAM = { stream: null, cuenta: 0, ocupado: false };
+function pintarCamara(msg) {
+  $('#camMsg').textContent = msg || (CAM.cuenta ? `${plural(CAM.cuenta, 'foto tomada', 'fotos tomadas')}. Puede seguir tomando.` : 'Ponga la prenda de frente y tome la foto.');
+}
+async function abrirCamara() {
+  CAM.cuenta = 0;
+  const ov = $('#camara');
+  ov.hidden = false;
+  document.body.classList.add('con-hoja');
+  $('#camVivo').hidden = false; $('#camFoto').hidden = true; $('#btnDisparar').hidden = false;
+  $('#btnDisparar').disabled = true;
+  pintarCamara('Abriendo la cámara…');
+  let stream = null;
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1600 }, height: { ideal: 1200 } }, audio: false }); }
+    catch (e) { console.warn('Cámara en vivo no disponible:', e && e.name); }
+  }
+  if (ov.hidden) { if (stream) stream.getTracks().forEach(t => t.stop()); return; }
+  if (!stream) {
+    $('#camVivo').hidden = true; $('#camFoto').hidden = false; $('#btnDisparar').hidden = true;
+    pintarCamara(' ');
+    return;
+  }
+  CAM.stream = stream;
+  const v = $('#camVideo');
+  v.srcObject = stream;
+  try { await v.play(); } catch (e) { /* algunos navegadores ya lo reproducen */ }
+  $('#btnDisparar').disabled = false;
+  pintarCamara();
+}
+async function dispararCamara() {
+  const v = $('#camVideo');
+  if (!CAM.stream || !v.videoWidth || CAM.ocupado) return;
+  CAM.ocupado = true;
+  const zona = $('#camVivo');
+  zona.classList.add('flash');
+  requestAnimationFrame(() => requestAnimationFrame(() => zona.classList.remove('flash')));
+  try {
+    compraCola();
+    const habia = cola.items.length;
+    cola.items.push(await itemDesdeImagen(v));
+    CAM.cuenta++;
+    pitar(true);
+    pintarCamara();
+    if (vista === 'agregar') { if (habia === 0) remontarAgregar(); else pintarCabCola(); }
+    procesarIA();
+  } catch (e) { pintarCamara('No se pudo tomar la foto. Pruebe otra vez.'); }
+  finally { CAM.ocupado = false; }
+}
+function cerrarCamara() {
+  if (CAM.stream) { CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+  const v = $('#camVideo'); if (v) v.srcObject = null;
+  $('#camara').hidden = true;
+  if ($('#hoja').hidden) document.body.classList.remove('con-hoja');
+  if (vista === 'agregar') pintarCabCola();
 }
 
 /* ================= PRENDAS ================= */
@@ -2156,6 +2276,93 @@ async function guardarTienda(btn) {
   if (ok) { cerrarHoja(); toast(ctx.nueva ? 'Tienda agregada.' : 'Tienda guardada.', 'bien'); }
 }
 
+/* ================= CLIENTES ================= */
+// La llave de cada cliente es su teléfono, solo con dígitos.
+const soloDigitos = v => String(v || '').replace(/\D/g, '');
+const telBonito = t => t && t.length === 8 ? `${t.slice(0, 4)} ${t.slice(4)}` : (t || '');
+const clientePorTel = t => t ? S.clientes.find(x => x.telefono === t) : undefined;
+const comprasDeCliente = t => S.prendas.filter(p => p.estado === 'vendida' && p.clienteTel === t);
+function coincideCliente(x, q) {
+  const nq = normal(q), d = soloDigitos(q);
+  if (!nq) return true;
+  if (d && d.length === nq.replace(/\s/g, '').length) return x.telefono.includes(d);
+  const texto = normal(x.nombre);
+  return nq.split(/\s+/).every(w => texto.includes(w));
+}
+// paraVenta: tocar un cliente lo pone en la venta actual; si no, abre su detalle
+function abrirClientes(paraVenta) {
+  abrirHoja(`<h2>${paraVenta ? '¿A quién le vende?' : 'Clientes'}</h2>
+    <div class="campo"><label for="qCliente">Buscar por nombre o teléfono</label><input id="qCliente" type="search" autocomplete="off" placeholder="Ej: María o 8888 8888"></div>
+    <button type="button" class="btn btn-marca btn-enorme" data-accion="cliente-nuevo">${ICON.mas} Cliente nuevo</button>
+    ${paraVenta && clienteVenta ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="cliente-ninguno">Vender sin cliente</button>` : ''}
+    <div id="listaClientes" class="mt"></div>`, null, paraVenta ? 'Elegir cliente' : 'Clientes');
+  hojaCtx.paraVenta = !!paraVenta;
+  pintarListaClientes();
+}
+function pintarListaClientes() {
+  const cont = $('#listaClientes');
+  if (!cont || !hojaCtx) return;
+  const q = ($('#qCliente') || {}).value || '';
+  const lista = S.clientes.filter(x => coincideCliente(x, q)).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  if (!S.clientes.length) { cont.innerHTML = '<p class="nota">Todavía no hay clientes. Agregue el primero con «Cliente nuevo».</p>'; return; }
+  if (!lista.length) { cont.innerHTML = `<p class="nota">No hay clientes con “${esc(q)}”.</p>`; return; }
+  const accion = hojaCtx.paraVenta ? 'cliente-a-venta' : 'ver-cliente';
+  cont.innerHTML = `<div class="lista-sel">${lista.slice(0, 50).map(x => `<button type="button" class="opcion-sel" data-accion="${accion}" data-id="${esc(x.telefono)}" aria-selected="${x.telefono === clienteVenta && hojaCtx.paraVenta}">
+      <span class="os-texto"><b>${esc(x.nombre)}</b><span class="nota">${esc(telBonito(x.telefono))}</span></span>
+      <span class="os-cuenta">${nf.format(comprasDeCliente(x.telefono).length)}</span>${x.telefono === clienteVenta && hojaCtx.paraVenta ? ICON.check : ''}</button>`).join('')}</div>
+    ${lista.length > 50 ? `<p class="nota">y ${lista.length - 50} más. Escriba para buscar.</p>` : ''}`;
+}
+function ponerClienteVenta(tel) {
+  clienteVenta = tel || '';
+  guardarCarritoLocal();
+  if (vista === 'vender') pintarCarrito(true);
+}
+function abrirFormCliente(x0, paraVenta) {
+  const nuevo = !x0;
+  const q = soloDigitos(($('#qCliente') || {}).value);
+  abrirHoja(`<h2>${nuevo ? 'Cliente nuevo' : 'Cambiar nombre del cliente'}</h2>
+    <div class="campo"><label for="cNombre">Nombre</label><input id="cNombre" autocomplete="off" maxlength="60" value="${esc(x0 ? x0.nombre : '')}" placeholder="Ej: María Rodríguez"></div>
+    <div class="campo"><label for="cTel">Teléfono</label><input id="cTel" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(x0 ? telBonito(x0.telefono) : q)}" placeholder="Ej: 8888 8888" ${nuevo ? '' : 'disabled'}>
+      ${nuevo ? '' : '<p class="nota mt">El teléfono no se puede cambiar. Si cambió de número, agréguelo como cliente nuevo.</p>'}</div>
+    <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-cliente">Guardar cliente</button>`, null, nuevo ? 'Cliente nuevo' : 'Cambiar cliente');
+  hojaCtx.cliente = x0 || null; hojaCtx.paraVenta = !!paraVenta;
+}
+async function guardarCliente(btn) {
+  const ctx = hojaCtx;
+  if (!ctx) return;
+  const nombre = $('#cNombre').value.trim().slice(0, 60);
+  const telefono = ctx.cliente ? ctx.cliente.telefono : soloDigitos($('#cTel').value);
+  if (!nombre) { toast('Escriba el nombre del cliente.', 'mal'); $('#cNombre').focus(); return; }
+  if (telefono.length < 8 || telefono.length > 15) { toast('Escriba el teléfono completo (8 números).', 'mal'); $('#cTel').focus(); return; }
+  const ya = clientePorTel(telefono);
+  if (!ctx.cliente && ya) { toast(`Ese teléfono ya es de ${ya.nombre}.`, 'mal'); return; }
+  const x = { telefono, nombre, creada: ctx.cliente ? ctx.cliente.creada : Date.now() };
+  btn.disabled = true;
+  const ok = await escribir(() => backend.ponerCliente(x));
+  btn.disabled = false;
+  if (!ok) return;
+  cerrarHoja();
+  if (ctx.paraVenta) { ponerClienteVenta(telefono); toast(`Venta para ${nombre}.`, 'bien'); }
+  else toast(ctx.cliente ? 'Cliente guardado.' : 'Cliente agregado.', 'bien');
+}
+function abrirCliente(tel) {
+  const x = clientePorTel(tel);
+  if (!x) return;
+  const vs = comprasDeCliente(tel).sort((a, b) => b.fechaVenta - a.fechaVenta);
+  abrirHoja(`<h2>${esc(x.nombre)}</h2>
+    <p class="nota">Teléfono ${esc(telBonito(x.telefono))}</p>
+    <dl class="cifras">
+      <div><dt>Prendas compradas</dt><dd>${nf.format(vs.length)}</dd></div>
+      <div><dt>Ha gastado</dt><dd>${col(suma(vs, p => p.precioVenta))}</dd></div>
+    </dl>
+    ${vs.length ? `<h3 class="grupo-sel">Lo que ha comprado</h3>${vs.slice(0, 30).map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">${col(p.precioVenta)}, el ${fCorta.format(p.fechaVenta)}</span></span></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
+    <div class="botones-hoja">
+      <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-cliente" data-id="${esc(x.telefono)}">Cambiar nombre</button>
+      <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-cliente" data-id="${esc(x.telefono)}">Borrar cliente</button>
+    </div>`, null, x.nombre);
+}
+
 /* ================= DETALLE Y EDICIÓN DE PRENDA ================= */
 function abrirPrenda(id) {
   const p = buscar(id);
@@ -2181,7 +2388,7 @@ function abrirPrenda(id) {
       <div><dt>${vendida ? 'La vendió en' : 'Precio de etiqueta'}</dt><dd>${col(vendida ? p.precioVenta : p.precio)}</dd></div>
       <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
-    <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''}</p>
+    <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}${clientePorTel(p.clienteTel) ? ` a ${esc(clientePorTel(p.clienteTel).nombre)} (tel. ${esc(telBonito(p.clienteTel))})` : ''}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''}</p>
     ${consejo}
     <div class="botones-hoja">
       ${vendida
@@ -2352,6 +2559,7 @@ function abrirAjustes() {
       <button type="button" data-accion="tema" data-valor="oscuro" aria-pressed="${temaActual() === 'oscuro'}">Oscura</button></div></div>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-ajustes">Guardar ajustes</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-accion="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-prueba">${ICON.impresora} Imprimir etiqueta de prueba</button>
       ${puedeDescargar() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="exportar">Descargar mis datos para Excel</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="respaldo">Descargar respaldo completo</button>` : ''}
@@ -2369,17 +2577,17 @@ async function guardarAjustes(btn) {
   if (ok) { cerrarHoja(); toast('Ajustes guardados.', 'bien'); }
 }
 async function exportar() {
-  const filas = [['Código', 'Tipo', 'Descripción', 'Talla', 'Color', 'Compra', 'Tienda', 'Costo', 'Precio etiqueta', 'Estado', 'Vendida en', 'Ganancia', 'Fecha ingreso', 'Fecha venta']];
+  const filas = [['Código', 'Tipo', 'Descripción', 'Talla', 'Color', 'Compra', 'Tienda', 'Costo', 'Precio etiqueta', 'Estado', 'Vendida en', 'Ganancia', 'Fecha ingreso', 'Fecha venta', 'Cliente', 'Teléfono cliente']];
   for (const p of S.prendas) {
     const c = compraPorId(p.compraId), v = p.estado === 'vendida';
     const t = tiendaDeCompra(c);
-    filas.push([p.codigo, p.tipo, p.descripcion, p.talla, p.color, c ? c.nombre : '', t ? t.nombre : '', costoDe(p), p.precio, v ? 'Vendida' : 'En tienda', v ? p.precioVenta : '', v ? ganancia(p) : '', claveDia(p.creada), p.fechaVenta ? claveDia(p.fechaVenta) : '']);
+    filas.push([p.codigo, p.tipo, p.descripcion, p.talla, p.color, c ? c.nombre : '', t ? t.nombre : '', costoDe(p), p.precio, v ? 'Vendida' : 'En tienda', v ? p.precioVenta : '', v ? ganancia(p) : '', claveDia(p.creada), p.fechaVenta ? claveDia(p.fechaVenta) : '', (clientePorTel(p.clienteTel) || {}).nombre || '', v ? p.clienteTel || '' : '']);
   }
   const csv = '\ufeff' + filas.map(f => f.map(x => { const s = String(x ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';')).join('\r\n');
   await descargar(`mi-tienda-${claveDia(Date.now())}.csv`, csv);
 }
 async function respaldo() {
-  const datos = { app: 'mi-tienda', version: 2, exportado: Date.now(), config: tomar(S.config, CAMPOS_CONFIG), tiendas: S.tiendas.map(t => tomar(t, CAMPOS_TIENDA)), compras: S.compras.map(c => tomar(c, CAMPOS_COMPRA)), prendas: S.prendas.map(p => tomar(p, CAMPOS_PRENDA)) };
+  const datos = { app: 'mi-tienda', version: 2, exportado: Date.now(), config: tomar(S.config, CAMPOS_CONFIG), tiendas: S.tiendas.map(t => tomar(t, CAMPOS_TIENDA)), clientes: S.clientes.map(x => tomar(x, CAMPOS_CLIENTE)), compras: S.compras.map(c => tomar(c, CAMPOS_COMPRA)), prendas: S.prendas.map(p => tomar(p, CAMPOS_PRENDA)) };
   if (await descargar(`respaldo-mi-tienda-${claveDia(Date.now())}.json`, JSON.stringify(datos))) toast('Respaldo descargado.', 'bien');
 }
 async function cargarRespaldo(file) {
@@ -2388,6 +2596,8 @@ async function cargarRespaldo(file) {
   try { d = JSON.parse(await file.text()); } catch (e) { d = null; }
   if (!d || !Array.isArray(d.prendas) || !Array.isArray(d.compras)) { toast('Ese archivo no es un respaldo de la tienda.', 'mal'); return; }
   const tiendas = (Array.isArray(d.tiendas) ? d.tiendas : []).filter(t => t && t.id && typeof t.id === 'string' && t.nombre).map(t => ({ id: t.id, nombre: String(t.nombre).slice(0, 60), zona: String(t.zona || ''), nota: String(t.nota || ''), creada: Number(t.creada) || Date.now() }));
+  const clientes = (Array.isArray(d.clientes) ? d.clientes : []).map(x => ({ telefono: soloDigitos(x && x.telefono), nombre: String((x && x.nombre) || '').trim().slice(0, 60), creada: Number(x && x.creada) || Date.now() })).filter(x => x.nombre && x.telefono.length >= 8 && x.telefono.length <= 15);
+  const tels = new Set([...clientes.map(x => x.telefono), ...S.clientes.map(x => x.telefono)]);
   const idsTienda = new Set([...tiendas.map(t => t.id), ...S.tiendas.map(t => t.id)]);
   const compras = d.compras.filter(c => c && c.id && typeof c.id === 'string').map(c => ({ ...tomar(c, CAMPOS_COMPRA), costo: num(c.costo), cantidad: num(c.cantidad), fecha: Number(c.fecha) || Date.now(), nombre: String(c.nombre || 'Compra'), nota: String(c.nota || ''), tiendaId: idsTienda.has(c.tiendaId) ? c.tiendaId : '' }));
   const ids = new Set([...compras.map(c => c.id), ...S.compras.map(c => c.id)]);
@@ -2396,9 +2606,10 @@ async function cargarRespaldo(file) {
     estado: p.estado === 'vendida' ? 'vendida' : 'disponible', creada: Number(p.creada) || Date.now(),
     descripcion: String(p.descripcion || p.tipo || 'Prenda'), tipo: String(p.tipo || 'Otro'), talla: String(p.talla || ''), color: String(p.color || ''), foto: String(p.foto || ''),
     costoFijo: !!p.costoFijo, impresa: !!p.impresa, precioVenta: p.estado === 'vendida' ? num(p.precioVenta) : null, fechaVenta: p.estado === 'vendida' ? Number(p.fechaVenta) || Date.now() : null, ventaId: p.ventaId || null,
+    clienteTel: p.estado === 'vendida' && tels.has(soloDigitos(p.clienteTel)) ? soloDigitos(p.clienteTel) : null,
   }));
   abrirHoja(`<h2>Cargar respaldo</h2>
-    <p>Se van a cargar ${tiendas.length ? `<b>${plural(tiendas.length, 'tienda', 'tiendas')}</b>, ` : ''}<b>${plural(compras.length, 'compra', 'compras')}</b> y <b>${plural(prendas.length, 'prenda', 'prendas')}</b>. Las que ya existen se actualizan; no se borra nada.</p>
+    <p>Se van a cargar ${tiendas.length ? `<b>${plural(tiendas.length, 'tienda', 'tiendas')}</b>, ` : ''}${clientes.length ? `<b>${plural(clientes.length, 'cliente', 'clientes')}</b>, ` : ''}<b>${plural(compras.length, 'compra', 'compras')}</b> y <b>${plural(prendas.length, 'prenda', 'prendas')}</b>. Las que ya existen se actualizan; no se borra nada.</p>
     <p class="resultado" id="avanceRespaldo" aria-live="polite"></p>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" id="siRespaldo">Cargar respaldo</button>
@@ -2407,7 +2618,7 @@ async function cargarRespaldo(file) {
       $('#siRespaldo', el).onclick = async e => {
         e.currentTarget.disabled = true;
         const av = $('#avanceRespaldo', el);
-        const ok = await escribir(() => backend.importar({ tiendas, compras, prendas }, (i, n) => { av.textContent = `Cargando… ${Math.round(i / n * 100)} %`; }));
+        const ok = await escribir(() => backend.importar({ tiendas, clientes, compras, prendas }, (i, n) => { av.textContent = `Cargando… ${Math.round(i / n * 100)} %`; }));
         if (ok) {
           const max = Math.max(0, ...prendas.map(p => parseInt(p.codigo, 10) || 0));
           if (!backend.siguienteCodigo && max > (Number(S.config.ultimoCodigo) || 0)) await escribir(() => backend.ponerConfig({ ...S.config, ultimoCodigo: max }));
@@ -2644,6 +2855,9 @@ document.addEventListener('click', async e => {
       break;
     }
     // agregar prendas
+    case 'camara': abrirCamara(); break;
+    case 'disparar': dispararCamara(); break;
+    case 'cerrar-camara': cerrarCamara(); break;
     case 'sin-foto': compraCola(); cola.items.push(nuevoItem({})); cola.i = cola.items.length - 1; remontarAgregar(); break;
     case 'ir-item': cola.i = Number(valor) || 0; remontarAgregar(); window.scrollTo(0, 0); break;
     case 'elegir-tipo':
@@ -2690,6 +2904,22 @@ document.addEventListener('click', async e => {
     case 'marcar-impresas': if (hojaCtx && hojaCtx.lista) { el.disabled = true; await marcarImpresas(hojaCtx.lista); } break;
     case 'editar-prenda': abrirEditar(id); break;
     case 'guardar-edicion': guardarEdicion(id, el); break;
+    case 'clientes': abrirClientes(false); break;
+    case 'elegir-cliente': abrirClientes(true); break;
+    case 'cliente-nuevo': abrirFormCliente(null, hojaCtx && hojaCtx.paraVenta); break;
+    case 'cliente-ninguno': cerrarHoja(); ponerClienteVenta(''); break;
+    case 'cliente-a-venta': { const x = clientePorTel(id); cerrarHoja(); ponerClienteVenta(id); if (x) toast(`Venta para ${x.nombre}.`, 'bien'); break; }
+    case 'ver-cliente': abrirCliente(id); break;
+    case 'editar-cliente': { const x = clientePorTel(id); if (x) abrirFormCliente(x, false); break; }
+    case 'guardar-cliente': guardarCliente(el); break;
+    case 'borrar-cliente': {
+      const x = clientePorTel(id); if (!x) break;
+      const n = comprasDeCliente(id).length;
+      confirmar(`¿Borrar a ${esc(x.nombre)}?`, `${n === 1 ? 'La prenda que compró se queda como vendida, pero sin cliente. ' : n ? `Las ${n} prendas que compró se quedan como vendidas, pero sin cliente. ` : ''}Esto no se puede deshacer.`, 'Sí, borrar cliente', async () => {
+        if (await escribir(() => backend.quitarCliente(id))) { cerrarHoja(); if (clienteVenta === id) ponerClienteVenta(''); toast('Cliente borrado.'); }
+      });
+      break;
+    }
     case 'borrar-prenda':
       confirmar('¿Borrar esta prenda?', 'Se borra de la tienda y de las cuentas. Esto no se puede deshacer.', 'Sí, borrar prenda', async () => {
         if (await escribir(() => backend.quitarPrenda(id))) { cerrarHoja(); toast('Prenda borrada.'); }
@@ -2713,7 +2943,8 @@ document.addEventListener('click', async e => {
 document.addEventListener('input', e => {
   const t = e.target;
   const it = itemActual();
-  if (t.id === 'fPrecio' && it) { it.precio = num(t.value); it.tocado.add('precio'); pintarPrecioItem(); }
+  if (t.id === 'qCliente') pintarListaClientes();
+  else if (t.id === 'fPrecio' && it) { it.precio = num(t.value); it.tocado.add('precio'); pintarPrecioItem(); }
   else if (t.id === 'fCostoItem' && it) { it.costoManual = num(t.value); pintarPrecioItem(); }
   else if (t.id === 'fTallaOtra' && it) { it.talla = t.value.trim(); it.tocado.add('talla'); $$('#tallaOpciones .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === it.talla))); programarVista(); }
   else if (t.id === 'fDesc' && it) { it.descripcion = t.value; if (t.value.trim()) it.tocado.add('desc'); else it.tocado.delete('desc'); programarVista(); }
@@ -2721,13 +2952,14 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.matches('[data-fotos]')) { const f = Array.from(t.files || []); t.value = ''; agregarFotos(f); }
+  if (t.matches('[data-fotos]')) { const f = Array.from(t.files || []); t.value = ''; if (t.closest('#camara')) cerrarCamara(); agregarFotos(f); }
   else if (t.id === 'inEscFoto') { const f = t.files && t.files[0]; t.value = ''; escanearFoto(f); }
   else if (t.id === 'inRespaldo') { const f = t.files && t.files[0]; t.value = ''; cargarRespaldo(f); }
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (!$('#escaner').hidden) cerrarEscaner();
+  else if (!$('#camara').hidden) cerrarCamara();
   else if (!$('#hoja').hidden) cerrarHoja();
 });
 
@@ -2738,6 +2970,9 @@ async function init() {
   $('#btnCerrar').innerHTML = `${ICON.x}<span>Cerrar</span>`;
   $('#btnCerrarEsc').innerHTML = `${ICON.x}<span>Cerrar</span>`;
   $('#escFotoIco').innerHTML = ICON.camara;
+  $('#btnCerrarCam').innerHTML = `${ICON.x}<span>Cerrar</span>`;
+  $('#camFotoIco').innerHTML = ICON.camara;
+  $('#btnDisparar').innerHTML = `${ICON.camara}<span>Tomar foto</span>`;
   $('#tabs').innerHTML = TABS.map(t => `<button type="button" class="tab" data-ir="${t.id}" aria-current="false">${ICON[t.ico]}<span>${t.txt}</span></button>`).join('');
   pintarBotonTema();
   ir('hoy');
