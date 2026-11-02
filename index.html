@@ -604,7 +604,7 @@ const ICON = {
 };
 
 /* ================= DATOS FIJOS ================= */
-const TIPOS = ['Blusa', 'Camisa', 'Camiseta', 'Vestido', 'Pantalón', 'Enagua', 'Short', 'Saco', 'Suéter', 'Zapatos', 'Bisutería', 'Bolso', 'Otro'];
+const TIPOS = ['Blusa', 'Camisa', 'Camiseta', 'Vestido', 'Enterizo', 'Conjunto', 'Pantalón', 'Enagua', 'Short', 'Saco', 'Suéter', 'Zapatos', 'Bisutería', 'Bolso', 'Otro'];
 const COLORES = [
   ['Negro', '#1d1d1f'], ['Blanco', '#ffffff'], ['Gris', '#9b9ba3'], ['Beige', '#dcc7a4'], ['Café', '#7a4a2a'],
   ['Rojo', '#d0202f'], ['Rosado', '#f4a0bd'], ['Fucsia', '#d42a88'], ['Morado', '#7a3e9e'], ['Lila', '#c6a6e0'],
@@ -1339,7 +1339,7 @@ function procesarIA() {
 function promptClasificar(costo, base, minimo) {
   return `Usted ayuda a una tienda de ropa americana (de paca) en Costa Rica. La foto muestra UN artículo para vender: una prenda, un par de zapatos, un bolso o una pieza de bisutería.
 Clasifíquelo y responda solo con un objeto JSON con estas claves:
-"tipos": las 3 opciones más probables, de más a menos probable, como lista de objetos {"tipo": texto, "prob": número entre 0 y 1}. El tipo debe ser exactamente uno de: ${JSON.stringify(TIPOS)}. En Costa Rica la falda se dice "Enagua". "Camiseta" es de algodón tipo T-shirt; "Camisa" es de botones con cuello; "Saco" incluye chaquetas y abrigos.
+"tipos": las 3 opciones más probables, de más a menos probable, como lista de objetos {"tipo": texto, "prob": número entre 0 y 1}. El tipo debe ser exactamente uno de: ${JSON.stringify(TIPOS)}. En Costa Rica la falda se dice "Enagua". "Camiseta" es de algodón tipo T-shirt; "Camisa" es de botones con cuello; "Saco" incluye chaquetas y abrigos. "Enterizo" es de una sola pieza que une la parte de arriba con pantalón o short (mono, jumpsuit, romper). "Conjunto" son dos piezas que hacen juego y se venden juntas (ej. top con short, pantalón o enagua de la misma tela).
 "colores": los 3 colores más probables del color principal, con el mismo formato {"color": texto, "prob": número}, usando exactamente uno de: ${JSON.stringify(NOMBRES_COLOR)}. Use "Estampado" si tiene diseño o muchos colores.
 "descripcion": nombre corto en español para la etiqueta, máximo 4 palabras, sin talla ni marca (ej. "Blusa floreada manga corta").
 "talla": la talla solo si se lee en una etiqueta dentro de la foto (ej. "M", "8", "38"); si no se ve, null.
