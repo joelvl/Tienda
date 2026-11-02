@@ -1,0 +1,7 @@
+# Configuración de la CLI de Supabase para este proyecto.
+project_id = "mi-tienda"
+
+[functions.clasificar]
+# Supabase revisa que la llamada traiga una sesión válida;
+# la función además exige que sea un usuario con sesión iniciada.
+verify_jwt = true

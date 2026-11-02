@@ -1,0 +1,82 @@
+name: Desplegar Mi tienda
+
+# Cada vez que se sube un cambio a "main": actualiza la base de datos en Supabase,
+# la función de reconocimiento de fotos, y publica la página en GitHub Pages.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: desplegar-mi-tienda
+  cancel-in-progress: false
+
+jobs:
+  base-de-datos:
+    name: Base de datos y función de IA (Supabase)
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Conectar con el proyecto
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Aplicar cambios a la base de datos
+        run: supabase db push
+
+      - name: Guardar la llave de Claude en Supabase
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" --project-ref "$PROJECT_REF"
+          else
+            echo "::warning::Sin ANTHROPIC_API_KEY: la tienda funciona, pero sin reconocimiento de fotos."
+          fi
+
+      - name: Publicar la función de reconocimiento
+        run: supabase functions deploy clasificar --project-ref "$PROJECT_REF"
+
+  pagina:
+    name: Página web (GitHub Pages)
+    needs: base-de-datos
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Preparar el sitio con la configuración
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          DOMINIO_USUARIOS: ${{ vars.DOMINIO_USUARIOS }}
+        run: node scripts/preparar-sitio.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - id: publicar
+        uses: actions/deploy-pages@v4
