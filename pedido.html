@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mi pedido</title>
+<meta name="description" content="Las prendas de su pedido y sus abonos">
+<meta name="robots" content="noindex">
+<!--MI_TIENDA_CONFIG-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700&display=swap">
+<style>
+/* Lo que ve el cliente con el enlace de su pedido: sus prendas, cuánto ha pagado y cuánto falta. */
+:root{
+  --fondo:#EFEDF6; --superficie:#FFFFFF; --superficie-2:#F6F5FA; --tinta:#221F3B; --tinta-suave:#5B5775; --linea:#D8D4E6;
+  --marca:#C92A62; --marca-tinta:#FFFFFF; --marca-suave:#FBE4ED;
+  --gana:#0A7A52; --gana-tinta:#FFFFFF;
+  --foco:#2F54EB;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+    --marca:#FF6B9C; --marca-tinta:#1B1020; --marca-suave:#3B1D2B;
+    --gana:#48D597; --gana-tinta:#0B1F16;
+    --foco:#8EA8FF;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#15131D; --superficie:#221F2D; --superficie-2:#2B2839; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+  --marca:#FF6B9C; --marca-tinta:#1B1020; --marca-suave:#3B1D2B;
+  --gana:#48D597; --gana-tinta:#0B1F16;
+  --foco:#8EA8FF;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:18px;line-height:1.4}
+:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
+.cab{background:var(--superficie);border-bottom:1px solid var(--linea);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px}
+.cab-in,.contenido{max-width:640px;margin:0 auto}
+.marca{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--marca);color:var(--marca-tinta);display:grid;place-items:center;flex:none}
+.logo svg{width:26px;height:26px}
+h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
+h2{font-size:20px;margin:24px 0 8px}
+.sub{margin:2px 0 0;color:var(--tinta-suave);font-size:16px}
+.contenido{padding:16px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+.tarjeta{background:var(--superficie);border-radius:16px;padding:16px}
+.estado{margin:0 0 4px;font-size:21px;font-weight:700}
+.estado.listo{color:var(--gana)}
+.nota{color:var(--tinta-suave);font-size:16px;margin:0}
+.prog{height:18px;background:var(--superficie-2);border-radius:9px;overflow:hidden;margin:14px 0 6px;display:block}
+.prog span{display:block;height:100%;background:var(--marca)}
+.prog.listo span{background:var(--gana)}
+.cifras{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 0}
+.cifras div{background:var(--superficie-2);border-radius:12px;padding:8px 10px}
+.cifras dt{font-size:14px;color:var(--tinta-suave)}
+.cifras dd{margin:0;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+@media (max-width:360px){.cifras{grid-template-columns:1fr}}
+.verde{color:var(--gana)}
+.fila{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--superficie);border-radius:14px;padding:10px 14px;margin:8px 0}
+.fila b{font-variant-numeric:tabular-nums}
+.prenda{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--superficie);border-radius:14px;padding:10px;margin:8px 0}
+.prenda .foto{width:64px;height:64px;border-radius:10px;background:var(--superficie-2);display:grid;place-items:center;color:var(--tinta-suave);overflow:hidden}
+.prenda .foto img{width:100%;height:100%;object-fit:cover;display:block}
+.prenda .foto svg{width:30px;height:30px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:12px;background:var(--gana);color:var(--gana-tinta);font-weight:700;text-decoration:none;margin-top:24px;padding:0 12px;text-align:center}
+.btn svg{width:22px;height:22px;flex:none}
+.vacio{background:var(--superficie);border-radius:16px;padding:24px;text-align:center;color:var(--tinta-suave)}
+.girando{display:inline-block;width:20px;height:20px;border:3px solid var(--linea);border-top-color:var(--marca);border-radius:50%;animation:gira .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.girando{animation:none}}
+</style>
+</head>
+<body>
+<header class="cab"><div class="cab-in marca">
+  <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/></svg></span>
+  <div><h1 id="nombre">Mi pedido</h1><p class="sub" id="sub">Sus prendas y sus abonos</p></div>
+</div></header>
+<main class="contenido" id="cont" aria-live="polite">
+  <p class="nota"><span class="girando" aria-hidden="true"></span>Cargando su pedido…</p>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const col = n => '₡' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const fLarga = new Intl.DateTimeFormat('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const mayus = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+const PERCHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2c0 1-2 1.5-2 3l9 7.5a1 1 0 0 1-.6 1.8H3.6a1 1 0 0 1-.6-1.8L12 8"/></svg>';
+const WA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>';
+
+async function rpc(nombre, cuerpo) {
+  const cfg = window.MI_TIENDA_CONFIG;
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) throw new Error('sin configuración');
+  const h = { apikey: cfg.supabaseAnonKey, 'Content-Type': 'application/json' };
+  if (cfg.supabaseAnonKey.startsWith('eyJ')) h.Authorization = 'Bearer ' + cfg.supabaseAnonKey;   // llave anon de proyectos viejos
+  const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${nombre}`, { method: 'POST', headers: h, body: JSON.stringify(cuerpo || {}) });
+  if (!r.ok) throw new Error(`${nombre}: ${r.status}`);
+  return r.json();
+}
+const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return d.length === 8 ? '506' + d : d; };
+
+function pintar(d) {
+  const tienda = d.tienda || {}, abonos = Array.isArray(d.abonos) ? d.abonos : [], prendas = Array.isArray(d.prendas) ? d.prendas : [];
+  const precio = Number(d.precio) || 0, pagado = abonos.reduce((s, b) => s + (Number(b.monto) || 0), 0), falta = Math.max(0, precio - pagado);
+  const pct = precio > 0 ? Math.min(100, Math.floor(pagado / precio * 100)) : 100;
+  document.title = `Pedido #${d.numero} · ${tienda.nombre || 'Tienda'}`;
+  $('#nombre').textContent = tienda.nombre || 'Mi pedido';
+  $('#sub').textContent = `Pedido #${d.numero}${d.cliente ? ' de ' + d.cliente : ''}`;
+  const estado = d.estado === 'cancelado' ? 'Este pedido se canceló.'
+    : d.estado === 'entregado' ? (falta ? `Ya se le entregaron sus prendas. Le faltan ${col(falta)}.` : '¡Pagado y entregado! Muchas gracias.')
+    : falta ? `Le faltan ${col(falta)}` : '¡Ya está pagado completo!';
+  const listo = d.estado !== 'cancelado' && !falta;
+  const tel = telWhatsApp(tienda.whatsapp);
+  const texto = `¡Hola! Le escribo por mi pedido #${d.numero}${d.cliente ? ' (' + d.cliente + ')' : ''}.`;
+  $('#cont').innerHTML = `<section class="tarjeta">
+      <p class="estado ${listo ? 'listo' : ''}">${esc(estado)}</p>
+      <p class="nota">Hecho el ${esc(fLarga.format(Number(d.creado)))}${d.entregado ? ` · entregado el ${esc(fLarga.format(Number(d.entregado)))}` : ''}</p>
+      ${d.estado === 'cancelado' ? '' : `<span class="prog ${listo ? 'listo' : ''}" role="progressbar" aria-label="Pagado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
+      <p class="nota">Ha pagado el ${pct} %</p>`}
+      <dl class="cifras">
+        <div><dt>Precio</dt><dd>${col(precio)}</dd></div>
+        <div><dt>Ha pagado</dt><dd class="verde">${col(pagado)}</dd></div>
+        <div><dt>Le falta</dt><dd>${col(falta)}</dd></div>
+      </dl>
+    </section>
+    <h2>Sus abonos (${abonos.length})</h2>
+    ${abonos.length ? abonos.slice().reverse().map(b => `<div class="fila"><span>${esc(mayus(fLarga.format(Number(b.fecha))))}</span><b>${col(b.monto)}</b></div>`).join('') : '<p class="nota">Todavía no hay abonos.</p>'}
+    ${prendas.length ? `<h2>Sus prendas (${prendas.length})</h2>
+    ${prendas.map(p => `<div class="prenda"><span class="foto">${p.foto ? `<img src="${esc(p.foto)}" alt="">` : PERCHA}</span>
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">${p.talla ? `Talla ${esc(p.talla)} · ` : ''}código ${esc(p.codigo)}</span></span></div>`).join('')}` : ''}
+    ${tel ? `<a class="btn" href="https://wa.me/${tel}?text=${encodeURIComponent(texto)}" target="_blank" rel="noopener">${WA} Escribirle a la tienda</a>` : ''}`;
+}
+
+async function iniciar() {
+  const clave = new URLSearchParams(location.search).get('c') || '';
+  if (clave.length < 16) { $('#cont').innerHTML = '<div class="vacio">Este enlace no está completo. Pídale a la tienda que se lo vuelva a mandar.</div>'; return; }
+  try {
+    const d = await rpc('pedido_ver', { clave });
+    if (!d) { $('#cont').innerHTML = '<div class="vacio">No encontramos este pedido. Pídale a la tienda que le vuelva a mandar el enlace.</div>'; return; }
+    pintar(d);
+  } catch (e) {
+    console.warn(e);
+    $('#cont').innerHTML = '<div class="vacio">No se pudo cargar su pedido. Revise el internet y vuelva a abrir el enlace.</div>';
+  }
+}
+iniciar();
+</script>
+</body>
+</html>

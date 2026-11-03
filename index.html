@@ -66,9 +66,10 @@ b,strong{font-weight:700}
 .ico{width:24px;height:24px;flex:none}
 
 /* navegación */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(7,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tab{position:relative;appearance:none;border:0;background:none;color:var(--tinta-suave);font:inherit;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:66px;padding:8px 2px;cursor:pointer}
 .tab .ico{width:26px;height:26px}
+@media (max-width:480px){.tab{font-size:12px;letter-spacing:-.2px}}
 .tab[aria-current="page"]{color:var(--marca);font-weight:700}
 .tab[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:4px;border-radius:0 0 4px 4px;background:var(--marca)}
 @media (min-width:900px){
@@ -236,6 +237,13 @@ th{font-size:15px;color:var(--tinta-suave)}
 .fila-cliente b{font-size:19px;overflow-wrap:anywhere}
 .fila-cliente .fc-total{font-size:20px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
 .fila-cliente .nota{grid-column:1/-1}
+.fila-apartado .prog{grid-column:1/-1;margin:4px 0 2px}
+.fila-apartado .fc-total{font-size:18px}
+.estado-apartado{margin:12px 0 0;font-size:19px}
+.fila-abono{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--superficie);border-radius:14px;padding:10px 14px;margin:8px 0}
+.fila-abono b{font-size:20px;font-variant-numeric:tabular-nums}
+.fila-abono .btn{min-height:44px;font-size:16px;padding:6px 12px}
+.caja-abono{background:var(--superficie);border-radius:14px;padding:4px 14px 14px;margin:10px 0}
 .venta-cliente{background:var(--superficie);border-radius:14px;padding:12px 14px;margin:10px 0}
 .venta-cliente .vc-cab{display:flex;justify-content:space-between;gap:10px;font-weight:700;margin-bottom:6px}
 .venta-cliente ul{margin:0;padding-left:20px}
@@ -516,14 +524,14 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
   <div id="hojaCuerpo"></div>
 </section>
 <div class="escaner" id="escaner" role="dialog" aria-modal="true" aria-label="Escanear prendas" hidden>
-  <div class="escaner-cab"><b>Escanear prendas</b><button class="cerrar" type="button" data-accion="cerrar-escaner" id="btnCerrarEsc"></button></div>
+  <div class="escaner-cab"><b id="escTitulo">Escanear prendas</b><button class="cerrar" type="button" data-accion="cerrar-escaner" id="btnCerrarEsc"></button></div>
   <div class="escaner-video" id="escVivo"><video id="escVideo" playsinline muted autoplay></video><div class="escaner-marco" id="escMarco"></div></div>
   <div class="escaner-foto" id="escFoto" hidden>
     <p>Tómele una foto de cerca al código de barras de la etiqueta. Puede tomar una foto tras otra.</p>
     <label class="btn btn-marca btn-gigante"><input type="file" accept="image/*" capture="environment" class="oculto" id="inEscFoto"><span id="escFotoIco"></span><span>Tomar foto del código</span></label>
   </div>
   <p class="escaner-msg" id="escMsg" aria-live="assertive"></p>
-  <div class="escaner-pie"><span id="escCuenta"></span><button type="button" class="btn btn-gana" data-accion="cerrar-escaner">Listo, ver la venta</button></div>
+  <div class="escaner-pie"><span id="escCuenta"></span><button type="button" class="btn btn-gana" data-accion="cerrar-escaner" id="escListo">Listo, ver la venta</button></div>
 </div>
 <div class="escaner" id="camara" role="dialog" aria-modal="true" aria-label="Tomar fotos" hidden>
   <div class="escaner-cab"><b>Tomar fotos</b><button class="cerrar" type="button" data-accion="cerrar-camara" id="btnCerrarCam"></button></div>
@@ -608,6 +616,8 @@ const ICON = {
   mas: svg('<path d="M12 5v14M5 12h14"/>'),
   compartir: svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'),
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
+  reloj: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  whatsapp: svg('<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-1.5-1-2-2l1-1-1-2z"/>'),
 };
 
 /* ================= DATOS FIJOS ================= */
@@ -631,7 +641,7 @@ const TAMANOS = {
   '51x25': { w: 50.8, h: 25.4, nombre: '2 × 1 pulgadas' },
 };
 const PRECIOS_RAPIDOS = [1900, 2900, 3900, 4900, 5900, 6900, 7900, 9900];
-const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick', whatsapp: '' };
+const CONFIG_BASE = { nombre: 'Mi tienda', factor: 2.5, etiqueta: '50x30', ultimoCodigo: 0, modeloIa: 'quick', whatsapp: '', porcentajeApartado: 50 };
 const PXMM = 16;
 function tallasPara(tipo) {
   if (tipo === 'Zapatos') return ['34', '35', '36', '37', '38', '39', '40', '41'];
@@ -641,7 +651,7 @@ function tallasPara(tipo) {
 }
 
 /* ================= ESTADO ================= */
-const S = { prendas: [], compras: [], tiendas: [], clientes: [], config: { ...CONFIG_BASE }, listo: false, modo: 'cargando', soloLectura: false };
+const S = { prendas: [], compras: [], tiendas: [], clientes: [], apartados: [], abonos: [], config: { ...CONFIG_BASE }, listo: false, modo: 'cargando', soloLectura: false };
 const cap = { sample: null, sampleImagenes: false, downloads: null };
 let backend = null;
 let vista = 'hoy';
@@ -682,22 +692,27 @@ function usar(nombre) {
 }
 
 /* ================= ALMACENAMIENTO ================= */
-const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero'];
+const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero', 'apartadoId'];
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
-const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa', 'whatsapp'];
+const CAMPOS_APARTADO = ['id', 'numero', 'clienteTel', 'precio', 'estado', 'creado', 'entregado', 'nota', 'clave'];
+const CAMPOS_ABONO = ['id', 'apartadoId', 'monto', 'fecha', 'nota'];
+const CAMPOS_CONFIG = ['nombre', 'factor', 'etiqueta', 'ultimoCodigo', 'modeloIa', 'whatsapp', 'porcentajeApartado'];
 const tomar = (o, campos) => { const r = {}; for (const k of campos) if (o[k] !== undefined) r[k] = o[k]; return r; };
 
 // Dentro de Claude: base de datos compartida del artifact
 class NubeBackend {
-  constructor(db) { this.db = db; this.p = { disp: null, vend: null, comp: null, tien: null, clie: null, conf: null }; }
+  constructor(db) { this.db = db; this.p = { disp: null, vend: null, apar: null, comp: null, tien: null, clie: null, apts: null, abns: null, conf: null }; }
   start() {
     const err = e => { console.warn('db', e); toast('Se perdió la conexión con sus datos. Recargue la página.', 'mal'); };
     const lista = s => s.docs.map(d => ({ ...d.data(), id: d.id }));
     const pr = this.db.collection('prendas');
     pr.where('estado', '==', 'disponible').limit(1000).onSnapshot(s => { this.p.disp = lista(s); this.emitir(); }, err);
     pr.where('estado', '==', 'vendida').orderBy('fechaVenta', 'desc').limit(1000).onSnapshot(s => { this.p.vend = lista(s); this.emitir(); }, err);
+    pr.where('estado', '==', 'apartada').limit(1000).onSnapshot(s => { this.p.apar = lista(s); this.emitir(); }, err);
+    this.db.collection('apartados').orderBy('creado', 'desc').limit(1000).onSnapshot(s => { this.p.apts = lista(s); this.emitir(); }, err);
+    this.db.collection('abonos').orderBy('fecha', 'desc').limit(3000).onSnapshot(s => { this.p.abns = lista(s); this.emitir(); }, err);
     this.db.collection('compras').orderBy('fecha', 'desc').limit(500).onSnapshot(s => { this.p.comp = lista(s); this.emitir(); }, err);
     this.db.collection('tiendas').orderBy('creada', 'desc').limit(300).onSnapshot(s => { this.p.tien = lista(s); this.emitir(); }, err);
     this.db.collection('clientes').orderBy('nombre').limit(2000).onSnapshot(s => { this.p.clie = s.docs.map(d => ({ ...d.data(), telefono: d.id })); this.emitir(); }, err);
@@ -705,12 +720,14 @@ class NubeBackend {
   }
   emitir() {
     const p = this.p;
-    S.prendas = [...(p.disp || []), ...(p.vend || [])];
+    S.prendas = [...(p.disp || []), ...(p.vend || []), ...(p.apar || [])];
     S.compras = p.comp || [];
     S.tiendas = p.tien || [];
     S.clientes = p.clie || [];
+    S.apartados = p.apts || [];
+    S.abonos = p.abns || [];
     S.config = { ...CONFIG_BASE, ...(p.conf || {}) };
-    S.listo = p.disp !== null && p.vend !== null && p.comp !== null && p.tien !== null && p.clie !== null && p.conf !== null;
+    S.listo = Object.values(p).every(v => v !== null);
     alCambiarDatos();
   }
   ponerPrenda(x) { const { id, ...d } = tomar(x, CAMPOS_PRENDA); return this.db.collection('prendas').doc(id).set(clon(d)); }
@@ -722,13 +739,16 @@ class NubeBackend {
   quitarTienda(id) { return this.db.doc('tiendas/' + id).delete(); }
   ponerCliente(x) { const { telefono, ...d } = tomar(x, CAMPOS_CLIENTE); return this.db.collection('clientes').doc(telefono).set(clon(d)); }
   quitarCliente(tel) { return this.db.doc('clientes/' + tel).delete(); }
+  ponerApartado(x) { const { id, ...d } = tomar(x, CAMPOS_APARTADO); return this.db.collection('apartados').doc(id).set(clon(d)); }
+  ponerAbono(x) { const { id, ...d } = tomar(x, CAMPOS_ABONO); return this.db.collection('abonos').doc(id).set(clon(d)); }
+  quitarAbono(id) { return this.db.doc('abonos/' + id).delete(); }
   ponerConfig(c) { return this.db.doc('config/tienda').set(clon(tomar(c, CAMPOS_CONFIG))); }
   async importar(d, avance) {
-    const todo = [...(d.tiendas || []).map(t => ['t', t]), ...(d.clientes || []).map(x => ['k', x]), ...d.compras.map(c => ['c', c]), ...d.prendas.map(p => ['p', p])];
+    const todo = [...(d.tiendas || []).map(t => ['t', t]), ...(d.clientes || []).map(x => ['k', x]), ...(d.apartados || []).map(x => ['a', x]), ...d.compras.map(c => ['c', c]), ...d.prendas.map(p => ['p', p]), ...(d.abonos || []).map(x => ['b', x])];
     for (let i = 0; i < todo.length; i++) {
       const [t, x] = todo[i];
       for (let intento = 0; ; intento++) {
-        try { await (t === 't' ? this.ponerTienda(x) : t === 'k' ? this.ponerCliente(x) : t === 'c' ? this.ponerCompra(x) : this.ponerPrenda(x)); break; }
+        try { await (t === 't' ? this.ponerTienda(x) : t === 'k' ? this.ponerCliente(x) : t === 'a' ? this.ponerApartado(x) : t === 'b' ? this.ponerAbono(x) : t === 'c' ? this.ponerCompra(x) : this.ponerPrenda(x)); break; }
         catch (e) { if (intento < 4 && e && (e.code === 'resource_exhausted' || e.code === 'unavailable')) { await espera(1500 * (intento + 1)); continue; } throw e; }
       }
       avance(i + 1, todo.length);
@@ -746,6 +766,8 @@ class LocalBackend {
     this.d = d && typeof d === 'object' ? d : { prendas: {}, compras: {}, config: {} };
     if (!this.d.tiendas) this.d.tiendas = {};
     if (!this.d.clientes) this.d.clientes = {};
+    if (!this.d.apartados) this.d.apartados = {};
+    if (!this.d.abonos) this.d.abonos = {};
   }
   start() { this.emitir(); }
   emitir() {
@@ -753,6 +775,8 @@ class LocalBackend {
     S.compras = Object.values(this.d.compras).map(x => ({ ...x })).sort((a, b) => b.fecha - a.fecha);
     S.tiendas = Object.values(this.d.tiendas).map(x => ({ ...x })).sort((a, b) => b.creada - a.creada);
     S.clientes = Object.values(this.d.clientes).map(x => ({ ...x }));
+    S.apartados = Object.values(this.d.apartados).map(x => ({ ...x }));
+    S.abonos = Object.values(this.d.abonos).map(x => ({ ...x }));
     S.config = { ...CONFIG_BASE, ...this.d.config };
     S.listo = true;
     alCambiarDatos();
@@ -770,11 +794,16 @@ class LocalBackend {
   async ponerTienda(x) { this.d.tiendas[x.id] = clon(tomar(x, CAMPOS_TIENDA)); this.guardar(); }
   async quitarTienda(id) { delete this.d.tiendas[id]; for (const c of Object.values(this.d.compras)) if (c.tiendaId === id) c.tiendaId = ''; this.guardar(); }
   async ponerCliente(x) { this.d.clientes[x.telefono] = clon(tomar(x, CAMPOS_CLIENTE)); this.guardar(); }
-  async quitarCliente(tel) { delete this.d.clientes[tel]; for (const p of Object.values(this.d.prendas)) if (p.clienteTel === tel) p.clienteTel = ''; this.guardar(); }
+  async quitarCliente(tel) { delete this.d.clientes[tel]; for (const x of [...Object.values(this.d.prendas), ...Object.values(this.d.apartados)]) if (x.clienteTel === tel) x.clienteTel = ''; this.guardar(); }
+  async ponerApartado(x) { this.d.apartados[x.id] = clon(tomar(x, CAMPOS_APARTADO)); this.guardar(); }
+  async ponerAbono(x) { this.d.abonos[x.id] = clon(tomar(x, CAMPOS_ABONO)); this.guardar(); }
+  async quitarAbono(id) { delete this.d.abonos[id]; this.guardar(); }
   async ponerConfig(c) { this.d.config = clon(tomar(c, CAMPOS_CONFIG)); this.guardar(); }
   async importar(d, avance) {
     for (const t of d.tiendas || []) this.d.tiendas[t.id] = clon(tomar(t, CAMPOS_TIENDA));
     for (const x of d.clientes || []) this.d.clientes[x.telefono] = clon(tomar(x, CAMPOS_CLIENTE));
+    for (const x of d.apartados || []) this.d.apartados[x.id] = clon(tomar(x, CAMPOS_APARTADO));
+    for (const x of d.abonos || []) this.d.abonos[x.id] = clon(tomar(x, CAMPOS_ABONO));
     for (const c of d.compras) this.d.compras[c.id] = clon(tomar(c, CAMPOS_COMPRA));
     for (const p of d.prendas) this.d.prendas[p.id] = clon(tomar(p, CAMPOS_PRENDA));
     avance(1, 1); this.guardar();
@@ -789,7 +818,7 @@ function aFila(o, campos) {
   for (const k of campos) {
     if (o[k] === undefined) continue;
     let v = o[k];
-    if ((k === 'compraId' || k === 'tiendaId' || k === 'clienteTel') && !v) v = null;
+    if ((k === 'compraId' || k === 'tiendaId' || k === 'clienteTel' || k === 'apartadoId') && !v) v = null;
     if (k === 'cantidad' && !(v > 0)) v = null;
     r[snake(k)] = v;
   }
@@ -797,7 +826,7 @@ function aFila(o, campos) {
 }
 const deFila = r => { const o = {}; for (const k in r) o[camel(k)] = r[k]; return o; };
 class SupaBackend {
-  constructor(sb) { this.sb = sb; this.pr = new Map(); this.co = new Map(); this.ti = new Map(); this.cl = new Map(); this.cfg = {}; this.ultimaCarga = 0; }
+  constructor(sb) { this.sb = sb; this.pr = new Map(); this.co = new Map(); this.ti = new Map(); this.cl = new Map(); this.ap = new Map(); this.ab = new Map(); this.cfg = {}; this.ultimaCarga = 0; }
   async start() {
     try { await this.cargarTodo(); }
     catch (e) { console.warn(e); S.listo = true; alCambiarDatos(); toast('No se pudieron cargar sus datos. Revise el internet y recargue.', 'mal'); }
@@ -806,6 +835,8 @@ class SupaBackend {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'compras' }, x => this.cambio('co', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tiendas' }, x => this.cambio('ti', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, x => this.cambio('cl', x))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apartados' }, x => this.cambio('ap', x))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'abonos' }, x => this.cambio('ab', x))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'config' }, x => this.cambio('cfg', x))
       .subscribe();
     document.addEventListener('visibilitychange', () => {
@@ -823,14 +854,17 @@ class SupaBackend {
     return filas;
   }
   async cargarTodo() {
-    const [p, c, t, k, cf] = await Promise.all([
+    const [p, c, t, k, ap, ab, cf] = await Promise.all([
       this.todas('prendas', 'creada'), this.todas('compras', 'fecha'), this.todas('tiendas', 'creada'), this.todas('clientes', 'creada'),
+      this.todas('apartados', 'creado'), this.todas('abonos', 'fecha'),
       this.sb.from('config').select('*').eq('id', 'tienda').maybeSingle(),
     ]);
     this.pr = new Map(p.map(r => [r.id, deFila(r)]));
     this.co = new Map(c.map(r => [r.id, deFila(r)]));
     this.ti = new Map(t.map(r => [r.id, deFila(r)]));
     this.cl = new Map(k.map(r => [r.telefono, deFila(r)]));
+    this.ap = new Map(ap.map(r => [r.id, deFila(r)]));
+    this.ab = new Map(ab.map(r => [r.id, deFila(r)]));
     this.cfg = cf && cf.data ? deFila(cf.data) : {};
     this.ultimaCarga = Date.now();
     this.emitir();
@@ -847,6 +881,8 @@ class SupaBackend {
     S.compras = [...this.co.values()].sort((a, b) => b.fecha - a.fecha);
     S.tiendas = [...this.ti.values()].sort((a, b) => b.creada - a.creada);
     S.clientes = [...this.cl.values()];
+    S.apartados = [...this.ap.values()];
+    S.abonos = [...this.ab.values()];
     S.config = { ...CONFIG_BASE, ...tomar(this.cfg, CAMPOS_CONFIG) };
     S.listo = true;
     alCambiarDatos();
@@ -870,7 +906,15 @@ class SupaBackend {
   async ponerTienda(t) { await this.ok(this.sb.from('tiendas').upsert(aFila(t, CAMPOS_TIENDA))); this.ti.set(t.id, { ...t }); this.emitir(); }
   async quitarTienda(id) { await this.borrar('tiendas', 'id', id); this.ti.delete(id); for (const [k, c] of this.co) if (c.tiendaId === id) this.co.set(k, { ...c, tiendaId: null }); this.emitir(); }
   async ponerCliente(x) { await this.ok(this.sb.from('clientes').upsert(aFila(x, CAMPOS_CLIENTE))); this.cl.set(x.telefono, { ...x }); this.emitir(); }
-  async quitarCliente(tel) { await this.borrar('clientes', 'telefono', tel); this.cl.delete(tel); for (const [k, p] of this.pr) if (p.clienteTel === tel) this.pr.set(k, { ...p, clienteTel: null }); this.emitir(); }
+  async quitarCliente(tel) {
+    await this.borrar('clientes', 'telefono', tel); this.cl.delete(tel);
+    for (const [k, p] of this.pr) if (p.clienteTel === tel) this.pr.set(k, { ...p, clienteTel: null });
+    for (const [k, a] of this.ap) if (a.clienteTel === tel) this.ap.set(k, { ...a, clienteTel: null });
+    this.emitir();
+  }
+  async ponerApartado(a) { await this.ok(this.sb.from('apartados').upsert(aFila(a, CAMPOS_APARTADO))); this.ap.set(a.id, { ...a }); this.emitir(); }
+  async ponerAbono(b) { await this.ok(this.sb.from('abonos').upsert(aFila(b, CAMPOS_ABONO))); this.ab.set(b.id, { ...b }); this.emitir(); }
+  async quitarAbono(id) { await this.borrar('abonos', 'id', id); this.ab.delete(id); this.emitir(); }
   async ponerConfig(c) { await this.ok(this.sb.from('config').upsert({ id: 'tienda', ...aFila(c, CAMPOS_CONFIG) })); this.cfg = { ...c }; this.emitir(); }
   async siguienteCodigo() {
     const { data, error } = await this.sb.rpc('siguiente_codigo');
@@ -878,11 +922,12 @@ class SupaBackend {
     return String(data);
   }
   async importar(d, avance) {
-    const tiendas = d.tiendas || [], clientes = d.clientes || [];
-    const total = tiendas.length + clientes.length + d.compras.length + d.prendas.length;
+    const tiendas = d.tiendas || [], clientes = d.clientes || [], apartados = d.apartados || [], abonos = d.abonos || [];
+    const total = tiendas.length + clientes.length + d.compras.length + d.prendas.length + apartados.length + abonos.length;
     let hechos = 0;
     if (tiendas.length) { await this.ok(this.sb.from('tiendas').upsert(tiendas.map(t => aFila(t, CAMPOS_TIENDA)))); hechos += tiendas.length; avance(hechos, total); }
     if (clientes.length) { await this.ok(this.sb.from('clientes').upsert(clientes.map(x => aFila(x, CAMPOS_CLIENTE)))); hechos += clientes.length; avance(hechos, total); }
+    if (apartados.length) { await this.ok(this.sb.from('apartados').upsert(apartados.map(x => aFila(x, CAMPOS_APARTADO)))); hechos += apartados.length; avance(hechos, total); }
     for (let i = 0; i < d.compras.length; i += 200) {
       const lote = d.compras.slice(i, i + 200);
       await this.ok(this.sb.from('compras').upsert(lote.map(c => aFila(c, CAMPOS_COMPRA))));
@@ -893,6 +938,7 @@ class SupaBackend {
       await this.ok(this.sb.from('prendas').upsert(lote.map(p => aFila(p, CAMPOS_PRENDA))));
       hechos += lote.length; avance(hechos, total);
     }
+    if (abonos.length) { await this.ok(this.sb.from('abonos').upsert(abonos.map(x => aFila(x, CAMPOS_ABONO)))); hechos += abonos.length; avance(hechos, total); }
     await this.cargarTodo();
   }
 }
@@ -1080,6 +1126,7 @@ const TABS = [
   { id: 'vender', txt: 'Vender', ico: 'etiqueta' },
   { id: 'prendas', txt: 'Prendas', ico: 'percha' },
   { id: 'compras', txt: 'Compras', ico: 'bolsa' },
+  { id: 'apartados', txt: 'Pedidos', ico: 'reloj' },
   { id: 'clientes', txt: 'Clientes', ico: 'persona' },
 ];
 function ir(v) {
@@ -1695,7 +1742,7 @@ function htmlTag(p, paraVender) {
   else meta = `<span class="meta">Código ${esc(p.codigo)}</span>`;
   return `<button type="button" class="tag ${vendida ? 'vendida' : ''}" ${attrs} aria-label="${esc(p.descripcion)}, ${vendida ? 'vendida en ' + col(p.precioVenta) : col(p.precio)}">
     ${p.foto ? `<img src="${p.foto}" alt="" loading="lazy">` : `<span class="sin-foto">${ICON.percha}</span>`}
-    ${vendida ? `<span class="sello">Vendida</span>` : ''}
+    ${vendida ? `<span class="sello">Vendida</span>` : p.estado === 'apartada' ? `<span class="sello">Apartada</span>` : ''}
     <span class="precio">${col(vendida ? p.precioVenta : p.precio)}</span>
     <span class="nombre">${esc(p.descripcion)}</span>
     <span class="meta">${p.talla ? 'Talla ' + esc(p.talla) : esc(p.tipo)}</span>
@@ -1710,6 +1757,7 @@ function itemsCarrito() {
 function agregarAlCarrito(p, silencioso) {
   if (!p) return false;
   if (p.estado === 'vendida') { if (!silencioso) toast(`Esa prenda ya se vendió el ${fCorta.format(p.fechaVenta)}.`, 'mal'); return 'vendida'; }
+  if (p.estado === 'apartada') { if (!silencioso) toast(`Esa prenda está apartada${textoDeApartado(p)}.`, 'mal'); return 'apartada'; }
   if (carrito.some(x => x.id === p.id)) { if (!silencioso) toast('Esa prenda ya está en la venta.'); return 'repetida'; }
   carrito.push({ id: p.id, precio: p.precio });
   guardarCarritoLocal();
@@ -1754,7 +1802,8 @@ function pintarCarrito(forzar) {
     <div class="carrito-botones">
       <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-venta">Guardar venta</button>
-    </div>`;
+    </div>
+    <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartar">${ICON.reloj} Hacer un pedido con estas prendas (pagará en abonos)</button>`;
   pintarTotalesCarrito();
 }
 function pintarTotalesCarrito() {
@@ -1811,6 +1860,7 @@ function renderResultadosVenta() {
 function ventaPorCodigo(v) {
   const t = String(v || '').trim();
   if (!t) return;
+  if (/^p\d{1,6}$/i.test(t)) { abrirPedidoPorCodigo(t); return; }
   if (/^\d+$/.test(t)) {
     const p = S.prendas.find(x => x.codigo === t.padStart(6, '0'));
     if (p) { if (agregarAlCarrito(p) === true) { $('#qVenta').value = ''; renderResultadosVenta(); } return; }
@@ -1820,12 +1870,12 @@ function ventaPorCodigo(v) {
   else if (!res.length) toast('No encontramos esa prenda. Revise el código.', 'mal');
 }
 async function deshacerVenta(id) {
-  const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null }));
+  const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null, apartadoId: null }));
   if (ok) { cerrarHoja(); toast('Venta deshecha. La prenda volvió a la tienda.'); }
 }
 
 // Escáner con la cámara (en vivo cuando se puede; si no, con una foto)
-const ESCN = { activo: false, stream: null, timer: 0, detector: null, zx: null, ultimo: '', ultimoT: 0, cuenta: 0, ocupado: false };
+const ESCN = { activo: false, stream: null, timer: 0, detector: null, zx: null, ultimo: '', ultimoT: 0, cuenta: 0, ocupado: false, modo: 'venta' };
 async function prepararDecodificador() {
   if (!ESCN.detector && 'BarcodeDetector' in window) {
     try {
@@ -1864,7 +1914,7 @@ function pintarEscaner(msg, estado) {
   const m = $('#escMarco');
   m.classList.remove('ok', 'mal');
   if (estado) { m.classList.add(estado); setTimeout(() => m.classList.remove(estado), 900); }
-  $('#escCuenta').textContent = `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en esta venta`;
+  $('#escCuenta').textContent = ESCN.modo === 'pedido' ? '' : `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en esta venta`;
 }
 function pitar(ok) {
   try { if (navigator.vibrate) navigator.vibrate(ok ? 70 : [60, 60, 60]); } catch (e) { /* opcional */ }
@@ -1879,7 +1929,14 @@ function pitar(ok) {
   } catch (e) { /* opcional */ }
 }
 function manejarCodigo(texto) {
-  const dig = String(texto || '').replace(/\D/g, '');
+  // Etiqueta de pedido (P0012): abre el apartado
+  const crudo = String(texto || '').trim().toUpperCase();
+  if (/^P\d{1,6}$/.test(crudo)) {
+    const a = apartadoPorNumero(parseInt(crudo.slice(1), 10));
+    if (!a) { pitar(false); pintarEscaner(`El pedido ${crudo} no existe.`, 'mal'); return; }
+    pitar(true); cerrarEscaner(); abrirApartado(a.id); return;
+  }
+  const dig = crudo.replace(/\D/g, '');
   if (!dig) return;
   const cod = dig.padStart(6, '0');
   const ahora = Date.now();
@@ -1887,13 +1944,23 @@ function manejarCodigo(texto) {
   ESCN.ultimo = cod; ESCN.ultimoT = ahora;
   const p = S.prendas.find(x => x.codigo === cod);
   if (!p) { pitar(false); pintarEscaner(`El código ${cod} no está en la tienda.`, 'mal'); return; }
+  // Buscando un pedido: una prenda apartada también lleva a su apartado
+  if (ESCN.modo === 'pedido') {
+    const a = p.estado === 'apartada' && apartadoPorId(p.apartadoId);
+    if (a) { pitar(true); cerrarEscaner(); abrirApartado(a.id); }
+    else { pitar(false); pintarEscaner(`${p.descripcion} no está apartada. Escanee la etiqueta del pedido.`, 'mal'); }
+    return;
+  }
   const r = agregarAlCarrito(p, true);
   if (r === true) { ESCN.cuenta++; pitar(true); pintarEscaner(`Agregada: ${p.descripcion}, ${col(p.precio)}.`, 'ok'); }
   else if (r === 'repetida') pintarEscaner(`${p.descripcion} ya está en la venta.`, 'ok');
+  else if (r === 'apartada') { pitar(false); pintarEscaner(`${p.descripcion} está apartada${textoDeApartado(p)}.`, 'mal'); }
   else { pitar(false); pintarEscaner(`${p.descripcion} ya se vendió el ${fCorta.format(p.fechaVenta)}.`, 'mal'); }
 }
-async function abrirEscaner() {
-  ESCN.cuenta = 0; ESCN.ultimo = '';
+async function abrirEscaner(modo = 'venta') {
+  ESCN.cuenta = 0; ESCN.ultimo = ''; ESCN.modo = modo;
+  $('#escTitulo').textContent = modo === 'pedido' ? 'Escanear pedido' : 'Escanear prendas';
+  $('#escListo').textContent = modo === 'pedido' ? 'Cerrar' : 'Listo, ver la venta';
   const ov = $('#escaner');
   ov.hidden = false;
   document.body.classList.add('con-hoja');
@@ -1912,7 +1979,7 @@ async function abrirEscaner() {
   const v = $('#escVideo');
   v.srcObject = stream;
   try { await v.play(); } catch (e) { /* algunos navegadores ya lo reproducen */ }
-  pintarEscaner('Apunte la cámara al código de barras de la etiqueta.');
+  pintarEscaner(modo === 'pedido' ? 'Apunte la cámara al código de barras de la etiqueta del pedido.' : 'Apunte la cámara al código de barras de la etiqueta.');
   const lienzo = document.createElement('canvas');
   const paso = async () => {
     if (!ESCN.activo) return;
@@ -2457,6 +2524,7 @@ function abrirCliente(tel) {
       <div><dt>Prendas</dt><dd>${nf.format(st.prendas)}</dd></div>
       ${st.ventas ? `<div><dt>Gasta por compra</dt><dd>${col(Math.round(st.gasto / st.ventas))}</dd></div>` : ''}
     </dl>
+    ${(() => { const aps = S.apartados.filter(a => a.clienteTel === tel && a.estado !== 'cancelado').sort((a, b) => b.numero - a.numero); return aps.length ? `<h3 class="grupo-sel">Pedidos</h3>${aps.map(htmlFilaApartado).join('')}` : ''; })()}
     ${ventas.length ? `<h3 class="grupo-sel">Lo que ha comprado</h3>${ventas.slice(0, 40).map(v => `<div class="venta-cliente">
       <div class="vc-cab"><span>${esc(fLarga.format(v.fecha))}</span><span>${col(v.total)}</span></div>
       <ul>${v.ps.map(p => `<li>${esc(p.descripcion)}${p.talla ? `, talla ${esc(p.talla)}` : ''}: ${col(p.precioVenta)}</li>`).join('')}</ul></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
@@ -2466,6 +2534,277 @@ function abrirCliente(tel) {
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-cliente" data-id="${esc(x.telefono)}">Cambiar nombre</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-cliente" data-id="${esc(x.telefono)}">Borrar cliente</button>
     </div>`, null, x.nombre);
+}
+
+/* ================= APARTADOS ================= */
+// La clienta separa varias prendas por un precio y las va pagando en abonos.
+// Mientras tanto las prendas quedan "apartadas": no salen en el inventario ni en el catálogo.
+// Al entregarlas pasan a vendidas (el precio del apartado se reparte entre ellas).
+const apartadoPorId = id => id ? S.apartados.find(a => a.id === id) : undefined;
+const apartadoPorNumero = n => S.apartados.find(a => Number(a.numero) === n);
+const prendasDeApartado = id => S.prendas.filter(p => p.apartadoId === id).sort((a, b) => a.creada - b.creada);
+const abonosDe = id => S.abonos.filter(b => b.apartadoId === id).sort((a, b) => a.fecha - b.fecha);
+const codigoPedido = a => 'P' + String(a.numero).padStart(4, '0');
+const pctParaEntregar = () => Math.min(100, Math.max(0, Number(S.config.porcentajeApartado ?? 50)));
+const siguienteNumeroPedido = () => Math.max(0, ...S.apartados.map(a => Number(a.numero) || 0)) + 1;
+// 18 letras al azar: el enlace del cliente no se puede adivinar
+const claveNueva = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), x => 'abcdefghijkmnpqrstuvwxyz23456789'[x % 32]).join('');
+const hayEnlacePedido = () => S.modo === 'supabase';
+const urlPedido = a => new URL('pedido.html?c=' + a.clave, location.href).href;
+function statsApartado(a) {
+  const abonos = abonosDe(a.id);
+  const pagado = suma(abonos, b => b.monto), precio = Number(a.precio) || 0;
+  const pct = precio > 0 ? Math.min(100, Math.floor(pagado / precio * 100)) : 100;
+  return { abonos, pagado, falta: Math.max(0, precio - pagado), pct, puedeEntregar: pct >= pctParaEntregar(), ultimo: abonos[abonos.length - 1] || null };
+}
+const apartadoActivo = (a, st) => a.estado === 'apartado' || (a.estado === 'entregado' && st.falta > 0);
+function textoEstadoApartado(a, st) {
+  if (a.estado === 'cancelado') return 'Cancelado';
+  if (a.estado === 'entregado') return st.falta > 0 ? `Entregado, todavía debe ${col(st.falta)}` : 'Entregado y pagado';
+  if (!st.falta) return 'Pagado completo: ya puede entregarlo';
+  return st.puedeEntregar ? `Ya pagó el ${st.pct} %: puede entregarlo` : `Lleva el ${st.pct} % (se entrega con el ${pctParaEntregar()} %)`;
+}
+// " para María (pedido #12)"
+function textoDeApartado(p) {
+  const a = apartadoPorId(p.apartadoId);
+  if (!a) return '';
+  const cli = clientePorTel(a.clienteTel);
+  return `${cli ? ' para ' + cli.nombre : ''} (pedido #${a.numero})`;
+}
+function abrirPedidoPorCodigo(t) {
+  const a = apartadoPorNumero(parseInt(String(t).replace(/\D/g, ''), 10));
+  if (a) abrirApartado(a.id); else toast(`No hay ningún pedido ${String(t).toUpperCase()}.`, 'mal');
+}
+function htmlBarraApartado(st) {
+  return `<span class="prog ${st.puedeEntregar ? '' : 'falta'}" role="progressbar" aria-label="Pagado del pedido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><span style="width:${st.pct}%"></span></span>`;
+}
+function htmlFilaApartado(a) {
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = prendasDeApartado(a.id).length;
+  return `<button type="button" class="fila-cliente fila-apartado" data-accion="ver-apartado" data-id="${esc(a.id)}">
+    <b>#${a.numero} · ${esc(cli ? cli.nombre : 'Sin cliente')}</b><span class="fc-total">${st.pct} %</span>
+    ${htmlBarraApartado(st)}
+    <span class="nota">Pagó ${col(st.pagado)} de ${col(a.precio)} · ${plural(n, 'prenda', 'prendas')}${st.ultimo ? ` · último abono ${hace(st.ultimo.fecha)}` : ''}</span>
+    <span class="nota ${a.estado === 'apartado' && st.puedeEntregar ? 'verde' : ''}"><b>${esc(textoEstadoApartado(a, st))}</b></span>
+  </button>`;
+}
+
+// Desde la venta: las prendas del carrito y la clienta elegida
+function abrirApartar() {
+  const items = itemsCarrito();
+  if (!items.length) return;
+  const cli = clientePorTel(clienteVenta);
+  if (!cli) { toast('Primero elija la clienta del pedido.', 'mal'); abrirClientes(true); return; }
+  const total = suma(items, x => x.precio);
+  abrirHoja(`<h2>Pedido para ${esc(cli.nombre)}</h2>
+    <p>${plural(items.length, 'prenda sale', 'prendas salen')} del inventario hasta que se ${items.length === 1 ? 'la' : 'las'} entregue. Por etiqueta ${items.length === 1 ? 'vale' : 'suman'} ${col(total)}.</p>
+    <div class="campo"><label for="apPrecio">Precio del pedido</label>${htmlStepper('apPrecio', total, '', 500)}<p class="nota mt">Lo que le va a cobrar por todas juntas.</p></div>
+    <div class="campo"><label for="apAbono">Lo que le dio hoy (primer abono)</label>${htmlStepper('apAbono', 0, '', 500)}<p class="nota mt">Déjelo vacío si todavía no le ha dado nada.</p></div>
+    <div class="botones-hoja">
+      <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-apartado">${ICON.reloj} Guardar pedido</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Volver a la venta</button>
+    </div>`, null, 'Pedido nuevo');
+}
+async function guardarApartado(btn) {
+  const items = itemsCarrito(), cli = clientePorTel(clienteVenta);
+  if (!items.length || !cli) { cerrarHoja(); return; }
+  const precio = num($('#apPrecio').value), abono = num($('#apAbono').value);
+  if (!(precio > 0)) { toast('Escriba el precio del pedido.', 'mal'); $('#apPrecio').focus(); return; }
+  if (abono > precio) { toast('El abono no puede ser más que el precio.', 'mal'); $('#apAbono').focus(); return; }
+  btn.disabled = true;
+  const t = Date.now();
+  const a = { id: nuevoId('a'), numero: siguienteNumeroPedido(), clienteTel: cli.telefono, precio, estado: 'apartado', creado: t, entregado: null, nota: '', clave: claveNueva() };
+  if (!(await escribir(() => backend.ponerApartado(a)))) { btn.disabled = false; return; }
+  for (const x of items) {
+    if (!(await escribir(() => backend.actualizarPrenda(x.id, { estado: 'apartada', apartadoId: a.id })))) { pintarCarrito(true); abrirApartado(a.id); return; }
+    carrito = carrito.filter(c => c.id !== x.id);
+    guardarCarritoLocal();
+  }
+  if (abono > 0) await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto: abono, fecha: t, nota: '' }));
+  clienteVenta = ''; guardarCarritoLocal();
+  pintarCarrito(true);
+  toast(`Pedido #${a.numero} guardado para ${cli.nombre}.`, 'bien');
+  abrirApartado(a.id);
+}
+
+// Mensaje para la clienta: cuánto lleva, cuánto falta y el enlace a su pedido
+function textoEstadoCuenta(a, st) {
+  const cli = clientePorTel(a.clienteTel);
+  let t = `¡Hola${cli ? ' ' + cli.nombre.split(' ')[0] : ''}! Su pedido #${a.numero} en ${S.config.nombre || 'la tienda'}: `;
+  t += st.falta > 0 ? `ha abonado ${col(st.pagado)} de ${col(a.precio)}, le faltan ${col(st.falta)}.` : `ya está pagado completo (${col(a.precio)}). ¡Muchas gracias!`;
+  if (st.ultimo) t += ` Último abono: ${col(st.ultimo.monto)} el ${fCorta.format(st.ultimo.fecha)}.`;
+  if (hayEnlacePedido()) t += ` Aquí puede ver sus prendas y sus abonos: ${urlPedido(a)}`;
+  return t;
+}
+function abrirApartado(id) {
+  const a = apartadoPorId(id);
+  if (!a) { toast('No se encontró ese pedido.', 'mal'); return; }
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = prendasDeApartado(a.id);
+  const abierto = a.estado === 'apartado', cobrando = a.estado !== 'cancelado' && st.falta > 0;
+  const btnEntregar = abierto ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} Entregar las prendas</button>` : '';
+  const ctx = abrirHoja(`<p class="codigo">Pedido ${esc(codigoPedido(a))}</p>
+    <h2 class="sin-margen">Pedido #${a.numero}${cli ? ' de ' + esc(cli.nombre) : ''}</h2>
+    <p class="nota">${cli ? `Tel. ${esc(telBonito(cli.telefono))} · ` : ''}hecho el ${esc(fLarga.format(a.creado))}${a.entregado ? ` · entregado el ${esc(fLarga.format(a.entregado))}` : ''}</p>
+    <p class="estado-apartado ${a.estado === 'cancelado' ? '' : st.puedeEntregar || a.estado === 'entregado' ? 'verde' : ''}"><b>${esc(textoEstadoApartado(a, st))}</b></p>
+    ${a.estado === 'cancelado' ? '' : htmlBarraApartado(st)}
+    <dl class="cifras">
+      <div><dt>Precio</dt><dd>${col(a.precio)}</dd></div>
+      <div><dt>Ha pagado</dt><dd class="verde">${col(st.pagado)}</dd></div>
+      <div><dt>Le falta</dt><dd>${col(st.falta)}</dd></div>
+    </dl>
+    ${cobrando ? `<div id="formAbono"><button type="button" class="btn btn-gana btn-enorme" data-accion="nuevo-abono" data-id="${esc(a.id)}">${ICON.mas} Registrar un abono</button></div>` : ''}
+    <h3 class="grupo-sel">Abonos (${st.abonos.length})</h3>
+    ${st.abonos.length ? st.abonos.slice().reverse().map(b => `<div class="fila-abono">
+        <span><b>${col(b.monto)}</b><br><span class="nota">${esc(mayus(fLarga.format(b.fecha)))}</span></span>
+        ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec" data-accion="quitar-abono" data-id="${esc(b.id)}" aria-label="Borrar abono de ${col(b.monto)}">Borrar</button>` : ''}
+      </div>`).join('') : '<p class="nota">Todavía no ha dado ningún abono.</p>'}
+    <h3 class="grupo-sel">Prendas (${ps.length})</h3>
+    ${ps.length ? ps.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
+        <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · etiqueta ${col(p.precio)}</span></span>
+        ${abierto ? `<button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button>` : '<span></span>'}
+      </div>`).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
+    <div class="botones-hoja">
+      ${st.puedeEntregar ? btnEntregar : ''}
+      ${cli && a.estado !== 'cancelado' ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(cli.telefono)}?text=${encodeURIComponent(textoEstadoCuenta(a, st))}" target="_blank" rel="noopener">${ICON.whatsapp} Enviarle cuánto lleva por WhatsApp</a>` : ''}
+      ${hayEnlacePedido() && a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="copiar-enlace-pedido" data-id="${esc(a.id)}">${ICON.compartir} Copiar el enlace de su pedido</button>` : ''}
+      ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-pedido" data-id="${esc(a.id)}">${ICON.impresora} Imprimir etiqueta del pedido</button>` : ''}
+      ${st.puedeEntregar ? '' : btnEntregar}
+      ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="editar-apartado" data-id="${esc(a.id)}">Cambiar el precio</button>` : ''}
+      ${abierto ? `<button type="button" class="btn btn-peligro btn-enorme" data-accion="cancelar-apartado" data-id="${esc(a.id)}">Cancelar pedido</button>` : ''}
+    </div>`, null, `Pedido ${a.numero}`);
+  ctx.apartadoId = a.id;
+}
+// Vuelve a pintar el apartado abierto sin perder dónde iba
+function repintarApartado(id) {
+  const y = $('#hoja').scrollTop;
+  abrirApartado(id);
+  $('#hoja').scrollTop = y;
+}
+function formAbono(id) {
+  const a = apartadoPorId(id), cont = $('#formAbono');
+  if (!a || !cont) return;
+  const st = statsApartado(a);
+  cont.innerHTML = `<div class="caja-abono">
+    <div class="campo"><label for="abMonto">¿Cuánto le dio?</label>${htmlStepper('abMonto', 0, '', 500)}<p class="nota mt">Le faltan ${col(st.falta)}.</p></div>
+    <div class="campo"><label for="abFecha">Fecha</label><input id="abFecha" type="date" value="${claveDia(Date.now())}" max="${claveDia(Date.now())}"></div>
+    <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-abono" data-id="${esc(a.id)}">Guardar abono</button></div>`;
+  $('#abMonto').focus();
+}
+async function guardarAbono(id, btn) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  const st = statsApartado(a), monto = num($('#abMonto').value);
+  if (!(monto > 0)) { toast('Escriba cuánto le dio.', 'mal'); $('#abMonto').focus(); return; }
+  if (monto > st.falta) { toast(`Solo le faltan ${col(st.falta)}.`, 'mal'); $('#abMonto').focus(); return; }
+  const dia = $('#abFecha').value;
+  const fecha = !dia || dia === claveDia(Date.now()) ? Date.now() : deIsoFecha(dia);
+  btn.disabled = true;
+  if (await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto, fecha, nota: '' }))) {
+    const nuevo = statsApartado(a);
+    toast(nuevo.falta ? `Abono de ${col(monto)} guardado. Le faltan ${col(nuevo.falta)}.` : `Abono guardado. ¡Ya pagó todo el pedido!`, 'bien');
+    repintarApartado(a.id);
+  } else btn.disabled = false;
+}
+function abrirEditarApartado(id) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  const ps = prendasDeApartado(a.id);
+  abrirHoja(`<h2>Precio del pedido #${a.numero}</h2>
+    <div class="campo"><label for="apPrecio">Precio del pedido</label>${htmlStepper('apPrecio', a.precio, '', 500)}
+      <p class="nota mt">Por etiqueta, sus ${plural(ps.length, 'prenda vale', 'prendas suman')} ${col(suma(ps, p => p.precio))}. Ya ha pagado ${col(statsApartado(a).pagado)}.</p></div>
+    <div class="botones-hoja">
+      <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-precio-apartado" data-id="${esc(a.id)}">Guardar precio</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-accion="ver-apartado" data-id="${esc(a.id)}">Volver</button>
+    </div>`, null, 'Precio del pedido');
+}
+async function guardarPrecioApartado(id, btn) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  const precio = num($('#apPrecio').value), pagado = statsApartado(a).pagado;
+  if (!(precio > 0)) { toast('Escriba el precio.', 'mal'); return; }
+  if (precio < pagado) { toast(`Ya le pagó ${col(pagado)}: el precio no puede ser menos.`, 'mal'); return; }
+  btn.disabled = true;
+  if (await escribir(() => backend.ponerApartado({ ...a, precio }))) {
+    // si ya se entregó, las prendas vendidas toman el precio nuevo
+    if (a.estado === 'entregado') await repartirVenta({ ...a, precio }, prendasDeApartado(a.id), {});
+    toast('Precio guardado.', 'bien'); abrirApartado(a.id);
+  } else btn.disabled = false;
+}
+// Reparte el precio del apartado entre sus prendas, según el precio de etiqueta de cada una
+async function repartirVenta(a, ps, extra) {
+  const pesos = ps.map(p => Number(p.precio) || 0), base = suma(pesos, x => x);
+  let resto = Number(a.precio) || 0;
+  for (let i = 0; i < ps.length; i++) {
+    const v = i === ps.length - 1 ? resto : Math.floor(a.precio * (base ? pesos[i] / base : 1 / ps.length));
+    resto -= v;
+    if (!(await escribir(() => backend.actualizarPrenda(ps[i].id, { ...extra, precioVenta: v })))) return false;
+  }
+  return true;
+}
+function entregarApartado(id) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  if (!ps.length) { toast('Este pedido no tiene prendas para entregar.', 'mal'); return; }
+  confirmar(`¿Entregarle las prendas del pedido #${a.numero}?`,
+    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}Las ${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(a.precio)} en total.`,
+    'Sí, entregar', async () => {
+      const t = Date.now();
+      const ok = await repartirVenta(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
+      if (ok && await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t }))) { toast(`Pedido #${a.numero} entregado.`, 'bien'); abrirApartado(a.id); }
+    });
+}
+function cancelarApartado(id) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  confirmar(`¿Cancelar el pedido #${a.numero}?`,
+    `Las ${plural(ps.length, 'prenda vuelve', 'prendas vuelven')} a la tienda.${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
+    'Sí, cancelar pedido', async () => {
+      for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { estado: 'disponible', apartadoId: null })))) return;
+      if (await escribir(() => backend.ponerApartado({ ...a, estado: 'cancelado' }))) { toast(`Pedido #${a.numero} cancelado. Las prendas volvieron a la tienda.`); abrirApartado(a.id); }
+    });
+}
+async function copiarEnlacePedido(id) {
+  const a = apartadoPorId(id);
+  if (!a) return;
+  try { await navigator.clipboard.writeText(urlPedido(a)); toast('Enlace copiado. Péguelo en WhatsApp.', 'bien'); }
+  catch (e) { toast(urlPedido(a)); }
+}
+// Lo que lleva la etiqueta del pedido (la dibuja la misma función de las etiquetas de prendas)
+function etiquetaDePedido(a) {
+  const cli = clientePorTel(a.clienteTel);
+  return { pedido: true, codigo: codigoPedido(a), numero: a.numero, descripcion: cli ? cli.nombre : 'Sin cliente', telCliente: cli ? cli.telefono : '', prendas: prendasDeApartado(a.id).length };
+}
+
+const filtroApartados = { ver: 'activos', q: '' };
+function coincideApartado(a, q) {
+  const nq = normal(q);
+  if (!nq) return true;
+  const cli = clientePorTel(a.clienteTel);
+  const d = soloDigitos(q);
+  return normal([cli ? cli.nombre : '', '#' + a.numero, codigoPedido(a)].join(' ')).includes(nq)
+    || (d && (String(a.numero) === d.replace(/^0+/, '') || (a.clienteTel || '').includes(d)));
+}
+function pintarVistaApartados() {
+  const cont = $('#listaApartados');
+  if (!cont) return;
+  const todos = S.apartados.map(a => ({ a, st: statsApartado(a) }));
+  const activos = todos.filter(x => apartadoActivo(x.a, x.st));
+  $('#cifrasApartados').innerHTML = `<div><dt>Activos</dt><dd>${nf.format(activos.length)}</dd></div>
+    <div><dt>Por cobrar</dt><dd>${col(suma(activos, x => x.st.falta))}</dd></div>`;
+  $$('[data-accion="ver-apartados"]').forEach(b => {
+    b.textContent = b.dataset.valor === 'activos' ? `Activos (${activos.length})` : `Terminados (${todos.length - activos.length})`;
+    b.setAttribute('aria-pressed', String(b.dataset.valor === filtroApartados.ver));
+  });
+  if (!todos.length) {
+    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno: en <b>Vender</b> escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».</p></div>`;
+    return;
+  }
+  const lista = (filtroApartados.ver === 'activos' ? activos : todos.filter(x => !apartadoActivo(x.a, x.st)))
+    .filter(x => coincideApartado(x.a, filtroApartados.q))
+    .sort((x, y) => (y.st.puedeEntregar && y.a.estado === 'apartado') - (x.st.puedeEntregar && x.a.estado === 'apartado') || y.a.numero - x.a.numero);
+  cont.innerHTML = lista.length ? lista.slice(0, 200).map(x => htmlFilaApartado(x.a)).join('')
+    : `<div class="vacio mt"><p>${filtroApartados.q ? `No hay pedidos con “${esc(filtroApartados.q)}”.` : filtroApartados.ver === 'activos' ? 'No hay pedidos activos.' : 'Todavía no hay pedidos terminados.'}</p></div>`;
 }
 
 // Contactos del teléfono (Chrome en Android). Se toma el nombre y el número.
@@ -2551,7 +2890,8 @@ function abrirPrenda(id) {
   const costo = costoDe(p);
   const gan = vendida ? ganancia(p) : p.precio - costo;
   let consejo = '';
-  if (!vendida) {
+  const apartado = p.estado === 'apartada' ? apartadoPorId(p.apartadoId) : null;
+  if (p.estado === 'disponible') {
     const d = diasDesde(p.creada);
     if (d >= 30) {
       const sug = Math.max(bajar900(p.precio * 0.8), a900(costo * 1.2));
@@ -2567,11 +2907,14 @@ function abrirPrenda(id) {
       <div><dt>${vendida ? 'La vendió en' : 'Precio de etiqueta'}</dt><dd>${col(vendida ? p.precioVenta : p.precio)}</dd></div>
       <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
+    ${apartado ? `<div class="aviso aviso-marca"><p>Está <b>apartada${esc(textoDeApartado(p))}</b>. No sale en el inventario ni en el catálogo.</p>
+      <button type="button" class="btn btn-marca" data-accion="ver-apartado" data-id="${esc(apartado.id)}">${ICON.reloj} Ver el pedido</button></div>` : ''}
     <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}${clientePorTel(p.clienteTel) ? ` a ${esc(clientePorTel(p.clienteTel).nombre)} (tel. ${esc(telBonito(p.clienteTel))})` : ''}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''} ${p.costoFijo || !c ? 'El costo lo escribió usted.' : 'El costo sale de repartir lo que costó la compra.'}</p>
     ${consejo}
     <div class="botones-hoja">
       ${vendida
         ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="deshacer-venta" data-id="${esc(p.id)}">Deshacer venta</button>`
+        : p.estado === 'apartada' ? ''
         : `<button type="button" class="btn btn-gana btn-enorme" data-accion="vender-prenda" data-id="${esc(p.id)}">${ICON.etiqueta} Vender esta prenda</button>
            <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-una" data-id="${esc(p.id)}">${ICON.impresora} Imprimir etiqueta</button>`}
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-prenda" data-id="${esc(p.id)}">Cambiar datos, costo o precio</button>
@@ -2640,6 +2983,8 @@ function recortar(g, t, ancho) {
 // Medidas en "u": 1 u = 1 mm en una etiqueta de 48 × 30 mm; en otras se escala según lo que quepa.
 // Si la etiqueta es más alta, el espacio de sobra se reparte entre las partes y el código de barras crece un poco.
 // k = puntos por mm (16 en pantalla y PDF, 8 en la impresora térmica); anchoMm y altoMm = lo que se alcanza a imprimir.
+// La etiqueta de un pedido (p.pedido) usa el mismo diseño: el nombre del cliente, «Pedido #12», cuántas prendas y su teléfono.
+const telGuion = t => t && t.length === 8 ? `${t.slice(0, 4)}-${t.slice(4)}` : (t || '');
 async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
   await fuentesListas();
   const t = tamanoEtiqueta();
@@ -2679,25 +3024,29 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
   g.fillText(recortar(g, p.descripcion || p.tipo, ancho), m, y);
   y += hDesc + extra;
 
-  // Precio grande y, a la derecha, la talla en un recuadro
+  // Precio grande (o «Pedido #12») y, a la derecha, la talla (o cuántas prendas) en un recuadro
+  const grande = p.pedido ? `Pedido #${p.numero}` : nf.format(p.precio);
+  const caja1 = p.pedido ? 'PRENDAS' : 'TALLA', caja2 = p.pedido ? String(p.prendas) : p.talla;
   let wTalla = 0;
-  if (p.talla) {
+  if (caja2) {
+    g.font = `700 ${1.5 * u}px ${fam}`;
+    const wEtq = g.measureText(caja1).width + caja1.length * 0.15 * u + 1.6 * u;
     g.font = `700 ${3.6 * u}px ${fam}`;
-    wTalla = Math.max(8 * u, g.measureText(p.talla).width + 2.4 * u);
+    wTalla = Math.max(8 * u, wEtq, g.measureText(caja2).width + 2.4 * u);
     const xT = W - m - wTalla;
     g.lineWidth = Math.max(2, 0.35 * u);
     caja(xT + g.lineWidth / 2, y + g.lineWidth / 2, wTalla - g.lineWidth, hPrecio - g.lineWidth, 0.9 * u); g.stroke();
     g.textAlign = 'center';
     g.font = `700 ${1.5 * u}px ${fam}`; espaciado(0.15 * u);
-    g.fillText('TALLA', xT + wTalla / 2, y + 0.7 * u);
+    g.fillText(caja1, xT + wTalla / 2, y + 0.7 * u);
     espaciado(0);
     g.font = `700 ${3.6 * u}px ${fam}`;
-    g.fillText(recortar(g, p.talla, wTalla - 1.2 * u), xT + wTalla / 2, y + 2.3 * u);
+    g.fillText(recortar(g, caja2, wTalla - 1.2 * u), xT + wTalla / 2, y + 2.3 * u);
     g.textAlign = 'left';
   }
-  const sPrecio = ajustar(nf.format(p.precio), 700, 6.6 * u, 3 * u, ancho - (wTalla ? wTalla + 1.5 * u : 0));
+  const sPrecio = ajustar(grande, 700, 6.6 * u, 3 * u, ancho - (wTalla ? wTalla + 1.5 * u : 0));
   g.textBaseline = 'alphabetic';
-  g.fillText(nf.format(p.precio), m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
+  g.fillText(grande, m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
   y += hPrecio + 1 * u + extra;
 
   // Código de barras
@@ -2712,10 +3061,10 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
     g.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(y));
   }
 
-  // Abajo: el código de la prenda y el teléfono de la tienda (8819-3754)
+  // Abajo: el código y el teléfono de la tienda (8819-3754); en un pedido, el teléfono del cliente
   const yPie = H - 1.3 * u;
-  const cod = String(p.codigo), w8 = S.config.whatsapp || '';
-  const tel = w8.length === 8 ? `${w8.slice(0, 4)}-${w8.slice(4)}` : w8;
+  const cod = String(p.codigo);
+  const tel = p.pedido ? (p.telCliente ? 'Tel ' + telGuion(p.telCliente) : '') : telGuion(S.config.whatsapp || '');
   g.font = `700 ${sPie}px ${fam}`;
   if (tel) {
     g.fillText(cod, m, yPie);
@@ -2838,20 +3187,26 @@ function tsplEtiqueta(p, t) {
   const fDesc = d0.length * 16 <= A - 32 ? ['3', 16] : ['2', 12];
   const max = Math.floor((A - 32) / fDesc[1]);
   const desc = d0.length <= max ? d0 : (d0.slice(0, max + 1).replace(/\s+\S*$/, '') || d0.slice(0, max));
-  const talla = sinTildes(p.talla).slice(0, 3);
-  const cod = String(p.codigo), w8 = S.config.whatsapp || '';
-  const tel = w8.length === 8 ? `${w8.slice(0, 4)}-${w8.slice(4)}` : w8;
-  const modulo = 68 * 3 <= A - 32 ? 3 : 2;
+  const talla = sinTildes(p.pedido ? String(p.prendas) : p.talla).slice(0, 3);
+  const cod = String(p.codigo);
+  const tel = p.pedido ? (p.telCliente ? 'Tel ' + telGuion(p.telCliente) : '') : telGuion(S.config.whatsapp || '');
+  // Código 128: 6 números ocupan 68 módulos; «P0012» (letra y números) ocupa 90
+  const modulos = p.pedido ? 90 : 68;
+  const modulo = modulos * 3 <= A - 32 ? 3 : 2;
   const alto = Math.max(40, B - 204), yPie = Math.max(B - 30, 164 + alto + 6);
   const l = [
     'CLS',
     `TEXT ${Math.max(8, Math.round(A / 2 - nom.length * fNombre[1] / 2))},14,"${fNombre[0]}",0,1,1,"${nom}"`,
     `BAR 16,52,${A - 32},2`,
     `TEXT 16,${fDesc[0] === '3' ? 62 : 66},"${fDesc[0]}",0,1,1,"${desc}"`,
-    `TEXT 16,96,"5",0,1,1,"${nf.format(p.precio)}"`,
   ];
-  if (talla) l.push(`BOX ${A - 96},92,${A - 16},152,3`, `TEXT ${A - 86},98,"2",0,1,1,"TALLA"`, `TEXT ${Math.round(A - 56 - talla.length * 12)},120,"4",0,1,1,"${talla}"`);
-  l.push(`BARCODE ${Math.round(A / 2 - 34 * modulo)},164,"128",${alto},0,0,${modulo},${modulo},"${cod}"`);
+  if (p.pedido) {
+    // «PEDIDO» en letra mediana y el número grande al lado
+    const nGrande = String(p.numero), f5 = 120 + nGrande.length * 32 <= A - 104;
+    l.push(`TEXT 16,${f5 ? 114 : 106},"3",0,1,1,"PEDIDO"`, `TEXT 120,${f5 ? 96 : 104},"${f5 ? 5 : 4}",0,1,1,"${nGrande}"`);
+  } else l.push(`TEXT 16,96,"5",0,1,1,"${nf.format(p.precio)}"`);
+  if (talla) l.push(`BOX ${A - 96},92,${A - 16},152,3`, p.pedido ? `TEXT ${A - 84},100,"1",0,1,1,"PRENDAS"` : `TEXT ${A - 86},98,"2",0,1,1,"TALLA"`, `TEXT ${Math.round(A - 56 - talla.length * 12)},120,"4",0,1,1,"${talla}"`);
+  l.push(`BARCODE ${Math.round(A / 2 - modulos / 2 * modulo)},164,"128",${alto},0,0,${modulo},${modulo},"${cod}"`);
   if (tel) l.push(`TEXT 16,${yPie},"2",0,1,1,"${cod}"`, `TEXT ${A - 16 - tel.length * 12},${yPie},"2",0,1,1,"${tel}"`);
   else l.push(`TEXT ${Math.round(A / 2 - cod.length * 6)},${yPie},"2",0,1,1,"${cod}"`);
   l.push('PRINT 1,1', '');
@@ -2889,6 +3244,7 @@ function abrirAjustes() {
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
     <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">Sale abajo en cada etiqueta, y en el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
+    <div class="campo"><label for="aPct">Pedidos: se entregan al pagar el</label><select id="aPct">${[0, 25, 30, 40, 50, 60, 70, 75, 80, 100].map(n => `<option value="${n}" ${n === pctParaEntregar() ? 'selected' : ''}>${n} %${n === 0 ? ' (en cualquier momento)' : n === 100 ? ' (solo pagado completo)' : ''}</option>`).join('')}</select><p class="nota mt">La tienda le avisa cuando un pedido ya llegó a ese porcentaje.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
@@ -2908,7 +3264,7 @@ async function guardarAjustes(btn) {
   const factor = Math.max(1, num($('#aFactor').value) / 1000 || 2.5);
   const wa = telDeContacto($('#aWa').value);
   if (wa && (wa.length < 8 || wa.length > 15)) { toast('Escriba el WhatsApp completo (8 números) o déjelo vacío.', 'mal'); $('#aWa').focus(); return; }
-  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value, whatsapp: telDeContacto($('#aWa').value) };
+  const cfg = { ...S.config, nombre: $('#aNombre').value.trim().slice(0, 40) || 'Mi tienda', factor, etiqueta: $('#aEtq').value, modeloIa: $('#aIa').value, whatsapp: telDeContacto($('#aWa').value), porcentajeApartado: Number($('#aPct').value) };
   btn.disabled = true;
   const ok = await escribir(() => backend.ponerConfig(cfg));
   btn.disabled = false;
@@ -2919,13 +3275,13 @@ async function exportar() {
   for (const p of S.prendas) {
     const c = compraPorId(p.compraId), v = p.estado === 'vendida';
     const t = tiendaDeCompra(c);
-    filas.push([p.codigo, p.tipo, p.descripcion, p.talla, p.color, c ? c.nombre : '', t ? t.nombre : '', costoDe(p), p.precio, v ? 'Vendida' : 'En tienda', v ? p.precioVenta : '', v ? ganancia(p) : '', claveDia(p.creada), p.fechaVenta ? claveDia(p.fechaVenta) : '', (clientePorTel(p.clienteTel) || {}).nombre || '', v ? p.clienteTel || '' : '']);
+    filas.push([p.codigo, p.tipo, p.descripcion, p.talla, p.color, c ? c.nombre : '', t ? t.nombre : '', costoDe(p), p.precio, v ? 'Vendida' : p.estado === 'apartada' ? 'Apartada' : 'En tienda', v ? p.precioVenta : '', v ? ganancia(p) : '', claveDia(p.creada), p.fechaVenta ? claveDia(p.fechaVenta) : '', (clientePorTel(p.clienteTel) || {}).nombre || '', v ? p.clienteTel || '' : '']);
   }
   const csv = '\ufeff' + filas.map(f => f.map(x => { const s = String(x ?? ''); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(';')).join('\r\n');
   await descargar(`mi-tienda-${claveDia(Date.now())}.csv`, csv);
 }
 async function respaldo() {
-  const datos = { app: 'mi-tienda', version: 2, exportado: Date.now(), config: tomar(S.config, CAMPOS_CONFIG), tiendas: S.tiendas.map(t => tomar(t, CAMPOS_TIENDA)), clientes: S.clientes.map(x => tomar(x, CAMPOS_CLIENTE)), compras: S.compras.map(c => tomar(c, CAMPOS_COMPRA)), prendas: S.prendas.map(p => tomar(p, CAMPOS_PRENDA)) };
+  const datos = { app: 'mi-tienda', version: 2, exportado: Date.now(), config: tomar(S.config, CAMPOS_CONFIG), tiendas: S.tiendas.map(t => tomar(t, CAMPOS_TIENDA)), clientes: S.clientes.map(x => tomar(x, CAMPOS_CLIENTE)), compras: S.compras.map(c => tomar(c, CAMPOS_COMPRA)), prendas: S.prendas.map(p => tomar(p, CAMPOS_PRENDA)), apartados: S.apartados.map(a => tomar(a, CAMPOS_APARTADO)), abonos: S.abonos.map(b => tomar(b, CAMPOS_ABONO)) };
   if (await descargar(`respaldo-mi-tienda-${claveDia(Date.now())}.json`, JSON.stringify(datos))) toast('Respaldo descargado.', 'bien');
 }
 async function cargarRespaldo(file) {
@@ -2939,15 +3295,21 @@ async function cargarRespaldo(file) {
   const idsTienda = new Set([...tiendas.map(t => t.id), ...S.tiendas.map(t => t.id)]);
   const compras = d.compras.filter(c => c && c.id && typeof c.id === 'string').map(c => ({ ...tomar(c, CAMPOS_COMPRA), costo: num(c.costo), cantidad: num(c.cantidad), fecha: Number(c.fecha) || Date.now(), nombre: String(c.nombre || 'Compra'), nota: String(c.nota || ''), tiendaId: idsTienda.has(c.tiendaId) ? c.tiendaId : '' }));
   const ids = new Set([...compras.map(c => c.id), ...S.compras.map(c => c.id)]);
+  const apartados = (Array.isArray(d.apartados) ? d.apartados : []).filter(a => a && a.id && typeof a.id === 'string' && num(a.numero) > 0 && String(a.clave || '').length >= 16).map(a => ({
+    id: a.id, numero: num(a.numero), clienteTel: tels.has(soloDigitos(a.clienteTel)) ? soloDigitos(a.clienteTel) : null, precio: num(a.precio),
+    estado: ['apartado', 'entregado', 'cancelado'].includes(a.estado) ? a.estado : 'apartado', creado: Number(a.creado) || Date.now(), entregado: Number(a.entregado) || null, nota: String(a.nota || ''), clave: String(a.clave) }));
+  const idsAp = new Set([...apartados.map(a => a.id), ...S.apartados.map(a => a.id)]);
+  const abonos = (Array.isArray(d.abonos) ? d.abonos : []).filter(b => b && b.id && idsAp.has(b.apartadoId) && num(b.monto) > 0).map(b => ({ id: String(b.id), apartadoId: b.apartadoId, monto: num(b.monto), fecha: Number(b.fecha) || Date.now(), nota: String(b.nota || '') }));
   const prendas = d.prendas.filter(p => p && p.id && p.codigo).map(p => ({
     ...tomar(p, CAMPOS_PRENDA), compraId: ids.has(p.compraId) ? p.compraId : '', costo: num(p.costo), precio: num(p.precio),
-    estado: p.estado === 'vendida' ? 'vendida' : 'disponible', creada: Number(p.creada) || Date.now(),
+    estado: p.estado === 'vendida' ? 'vendida' : p.estado === 'apartada' && idsAp.has(p.apartadoId) ? 'apartada' : 'disponible', creada: Number(p.creada) || Date.now(),
+    apartadoId: idsAp.has(p.apartadoId) && p.estado !== 'disponible' ? p.apartadoId : null,
     descripcion: String(p.descripcion || p.tipo || 'Prenda'), tipo: String(p.tipo || 'Otro'), talla: String(p.talla || ''), color: String(p.color || ''), foto: String(p.foto || ''),
     costoFijo: !!p.costoFijo, impresa: !!p.impresa, precioVenta: p.estado === 'vendida' ? num(p.precioVenta) : null, fechaVenta: p.estado === 'vendida' ? Number(p.fechaVenta) || Date.now() : null, ventaId: p.ventaId || null,
     clienteTel: p.estado === 'vendida' && tels.has(soloDigitos(p.clienteTel)) ? soloDigitos(p.clienteTel) : null,
   }));
   abrirHoja(`<h2>Cargar respaldo</h2>
-    <p>Se van a cargar ${tiendas.length ? `<b>${plural(tiendas.length, 'tienda', 'tiendas')}</b>, ` : ''}${clientes.length ? `<b>${plural(clientes.length, 'cliente', 'clientes')}</b>, ` : ''}<b>${plural(compras.length, 'compra', 'compras')}</b> y <b>${plural(prendas.length, 'prenda', 'prendas')}</b>. Las que ya existen se actualizan; no se borra nada.</p>
+    <p>Se van a cargar ${tiendas.length ? `<b>${plural(tiendas.length, 'tienda', 'tiendas')}</b>, ` : ''}${clientes.length ? `<b>${plural(clientes.length, 'cliente', 'clientes')}</b>, ` : ''}<b>${plural(compras.length, 'compra', 'compras')}</b>${apartados.length ? `, <b>${plural(apartados.length, 'apartado', 'apartados')}</b>` : ''} y <b>${plural(prendas.length, 'prenda', 'prendas')}</b>. Las que ya existen se actualizan; no se borra nada.</p>
     <p class="resultado" id="avanceRespaldo" aria-live="polite"></p>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" id="siRespaldo">Cargar respaldo</button>
@@ -2956,7 +3318,7 @@ async function cargarRespaldo(file) {
       $('#siRespaldo', el).onclick = async e => {
         e.currentTarget.disabled = true;
         const av = $('#avanceRespaldo', el);
-        const ok = await escribir(() => backend.importar({ tiendas, clientes, compras, prendas }, (i, n) => { av.textContent = `Cargando… ${Math.round(i / n * 100)} %`; }));
+        const ok = await escribir(() => backend.importar({ tiendas, clientes, compras, prendas, apartados, abonos }, (i, n) => { av.textContent = `Cargando… ${Math.round(i / n * 100)} %`; }));
         if (ok) {
           const max = Math.max(0, ...prendas.map(p => parseInt(p.codigo, 10) || 0));
           if (!backend.siguienteCodigo && max > (Number(S.config.ultimoCodigo) || 0)) await escribir(() => backend.ponerConfig({ ...S.config, ultimoCodigo: max }));
@@ -3104,6 +3466,24 @@ const VISTAS = {
         + (viejas.length || filtro.viejas ? `<div class="chips mt"><button type="button" class="chip" data-accion="alternar-viejas" aria-pressed="${filtro.viejas}">Solo las de más de 30 días (${viejas.length})</button></div>` : '');
       pintarListaPrendas();
     },
+  },
+  apartados: {
+    mount(el) {
+      el.innerHTML = `<h1>Pedidos</h1>
+        <div class="botones-clientes">
+          <button type="button" class="btn btn-marca btn-enorme" data-accion="escanear-pedido">${ICON.escaner} Escanear etiqueta de pedido</button>
+          <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartado-nuevo">${ICON.mas} Pedido nuevo</button>
+        </div>
+        <dl class="cifras" id="cifrasApartados"></dl>
+        <div class="segmento dos-op" role="group" aria-label="Qué pedidos mostrar">
+          <button type="button" data-accion="ver-apartados" data-valor="activos"></button>
+          <button type="button" data-accion="ver-apartados" data-valor="terminados"></button>
+        </div>
+        <div class="campo mt"><label for="qApartados" class="sr">Buscar pedidos</label><input id="qApartados" type="search" enterkeyhint="search" autocomplete="off" placeholder="Buscar por cliente, teléfono o número" value="${esc(filtroApartados.q)}"></div>
+        <div id="listaApartados"></div>`;
+      $('#qApartados').addEventListener('keydown', e => { if (e.key === 'Enter' && /^p\d{1,6}$/i.test(e.target.value.trim())) { e.preventDefault(); abrirPedidoPorCodigo(e.target.value.trim()); } });
+    },
+    update() { pintarVistaApartados(); },
   },
   clientes: {
     mount(el) {
@@ -3253,7 +3633,7 @@ document.addEventListener('click', async e => {
     case 'escanear': abrirEscaner(); break;
     case 'cerrar-escaner': cerrarEscaner(); break;
     case 'al-carrito': { const p = buscar(id); if (agregarAlCarrito(p) === true) { const q = $('#qVenta'); if (q) { q.value = ''; renderResultadosVenta(); } } break; }
-    case 'vender-prenda': { const p = buscar(id); cerrarHoja(); if (agregarAlCarrito(p) !== 'vendida') ir('vender'); break; }
+    case 'vender-prenda': { const p = buscar(id); cerrarHoja(); const r = agregarAlCarrito(p); if (r === true || r === 'repetida') ir('vender'); break; }
     case 'quitar-carrito': carrito = carrito.filter(x => x.id !== id); guardarCarritoLocal(); pintarCarrito(true); break;
     case 'carrito-delta': {
       const x = carrito.find(c => c.id === id); if (!x) break;
@@ -3264,6 +3644,36 @@ document.addEventListener('click', async e => {
     case 'vaciar-carrito': carrito = []; guardarCarritoLocal(); pintarCarrito(true); break;
     case 'guardar-venta': guardarVenta(el); break;
     case 'deshacer-venta': deshacerVenta(id); break;
+    // apartados
+    case 'apartar': abrirApartar(); break;
+    case 'guardar-apartado': guardarApartado(el); break;
+    case 'apartado-nuevo': ir('vender'); toast('Escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».'); break;
+    case 'escanear-pedido': abrirEscaner('pedido'); break;
+    case 'ver-apartados': filtroApartados.ver = valor; pintarVistaApartados(); break;
+    case 'ver-apartado': abrirApartado(id); break;
+    case 'nuevo-abono': formAbono(id); break;
+    case 'guardar-abono': guardarAbono(id, el); break;
+    case 'quitar-abono': {
+      const b = S.abonos.find(x => x.id === id); if (!b) break;
+      confirmar(`¿Borrar el abono de ${col(b.monto)}?`, `Es el del ${esc(fLarga.format(b.fecha))}. Esto no se puede deshacer.`, 'Sí, borrar abono', async () => {
+        if (await escribir(() => backend.quitarAbono(id))) { toast('Abono borrado.'); abrirApartado(b.apartadoId); }
+      });
+      break;
+    }
+    case 'soltar-prenda': {
+      const p = buscar(id); if (!p) break;
+      const aid = p.apartadoId;
+      confirmar('¿Quitar esta prenda del apartado?', `${esc(p.descripcion)} vuelve a la tienda. El precio del apartado no cambia solo: si hace falta, cámbielo después.`, 'Sí, quitarla', async () => {
+        if (await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', apartadoId: null }))) { toast('La prenda volvió a la tienda.'); abrirApartado(aid); }
+      });
+      break;
+    }
+    case 'editar-apartado': abrirEditarApartado(id); break;
+    case 'guardar-precio-apartado': guardarPrecioApartado(id, el); break;
+    case 'entregar-apartado': entregarApartado(id); break;
+    case 'cancelar-apartado': cancelarApartado(id); break;
+    case 'copiar-enlace-pedido': copiarEnlacePedido(id); break;
+    case 'etiqueta-pedido': { const a = apartadoPorId(id); if (a) abrirEtiquetas([etiquetaDePedido(a)], `Etiqueta del pedido #${a.numero}`); break; }
     // prendas
     case 'etiqueta-una': { const p = buscar(id); if (p) abrirEtiquetas([p], 'Etiqueta de la prenda'); break; }
     case 'imprimir-pendientes': abrirEtiquetas(disponibles().filter(p => !p.impresa).sort((a, b) => a.creada - b.creada), 'Etiquetas sin imprimir'); break;
@@ -3327,6 +3737,7 @@ document.addEventListener('input', e => {
   const it = itemActual();
   if (t.id === 'qCliente') pintarListaClientes();
   else if (t.id === 'qClientes') { filtroClientes.q = t.value; pintarVistaClientes(); }
+  else if (t.id === 'qApartados') { filtroApartados.q = t.value; pintarVistaApartados(); }
   else if (t.id === 'fPrecio' && it) { it.precio = num(t.value); it.tocado.add('precio'); pintarPrecioItem(); }
   else if (t.id === 'fCostoItem' && it) { it.costoManual = num(t.value); pintarPrecioItem(); }
   else if (t.id === 'fTallaOtra' && it) { it.talla = t.value.trim(); it.tocado.add('talla'); $$('#tallaOpciones .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === it.talla))); programarVista(); }
