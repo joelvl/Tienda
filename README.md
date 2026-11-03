@@ -17,6 +17,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `supabase/migrations/…_apartados.sql` | Apartados y sus abonos, prendas apartadas y la función pública `pedido_ver` del enlace del cliente. |
 | `supabase/migrations/…_ofertas.sql` | Descuento (porcentaje) de cada prenda y el catálogo con el precio de oferta. |
 | `supabase/migrations/…_pedido_retiros.sql` | El enlace del cliente muestra qué prendas del pedido ya se llevó. |
+| `supabase/migrations/…_fotos_calidad.sql` | Fotos en buena calidad: almacenamiento «fotos» y la dirección de la foto grande de cada prenda. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
 | `supabase/functions/mcp/` | Conector de Claude (servidor MCP) para preguntarle a Claude por las ventas, prendas, pedidos y clientes, y corregir datos de prendas. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
@@ -135,3 +136,8 @@ Una sola vez:
 3. Al conectarlo, Claude abre `conectar.html`: se entra con el **mismo usuario y contraseña de la tienda**. Claude recibe un permiso que dura una hora y se renueva solo.
 
 Si borra o bloquea un usuario en Supabase, ese Claude pierde el acceso en menos de una hora. Si cambia `MCP_CLAVE`, todos tienen que volver a conectar.
+
+## Fotos
+Cada foto se guarda en dos tamaños: una miniatura liviana dentro de la prenda (para que las listas carguen rápido) y la foto en buena calidad (hasta 1600 px) en el almacenamiento «fotos» de Supabase, que se ve en el detalle de la prenda, en el catálogo al tocar la foto, y la usa Claude con el conector. Las fotos que se subieron antes de este cambio solo tienen la miniatura: para verlas mejor, cámbielas.
+
+En el detalle de cada prenda: **Cambiar la foto** (tomar una nueva o elegir de la galería), **Girar** y **Quitar la foto**.

@@ -270,6 +270,9 @@ th{font-size:15px;color:var(--tinta-suave)}
 .venta-cliente ul{margin:0;padding-left:20px}
 .tels-contacto{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .detalle-foto{display:block;width:100%;max-height:300px;object-fit:contain;border-radius:14px;background:var(--superficie-2);margin-bottom:12px}
+.foto-acciones{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.foto-acciones .btn{flex:1 1 140px;min-height:48px;font-size:16px}
+.fotos-elegir{display:grid;gap:10px}
 .codigo{font-size:15px;color:var(--tinta-suave);margin:0}
 .venta-cab{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center}
 .venta-cab img,.venta-cab .sin-foto{width:96px;height:96px;object-fit:cover;border-radius:12px;background:var(--superficie-2);display:grid;place-items:center;color:var(--tinta-suave)}
@@ -645,6 +648,7 @@ const ICON = {
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
   ojo: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   ojoNo: svg('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
+  girar: svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   reloj: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   whatsapp: svg('<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-1.5-1-2-2l1-1-1-2z"/>'),
 };
@@ -737,7 +741,7 @@ function usar(nombre) {
 }
 
 /* ================= ALMACENAMIENTO ================= */
-const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero', 'apartadoId', 'descuento'];
+const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero', 'apartadoId', 'descuento', 'fotoUrl'];
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
@@ -961,6 +965,13 @@ class SupaBackend {
   async ponerAbono(b) { await this.ok(this.sb.from('abonos').upsert(aFila(b, CAMPOS_ABONO))); this.ab.set(b.id, { ...b }); this.emitir(); }
   async quitarAbono(id) { await this.borrar('abonos', 'id', id); this.ab.delete(id); this.emitir(); }
   async ponerConfig(c) { await this.ok(this.sb.from('config').upsert({ id: 'tienda', ...aFila(c, CAMPOS_CONFIG) })); this.cfg = { ...c }; this.emitir(); }
+  // Foto grande en el almacenamiento público «fotos» (el nombre lleva la prenda y la hora: no se adivina)
+  async subirFoto(id, blob) {
+    const ruta = `${id}/${Date.now().toString(36)}.jpg`;
+    const { error } = await this.sb.storage.from('fotos').upload(ruta, blob, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+    if (error) throw error;
+    return this.sb.storage.from('fotos').getPublicUrl(ruta).data.publicUrl;
+  }
   async siguienteCodigo() {
     const { data, error } = await this.sb.rpc('siguiente_codigo');
     if (error || !data) throw { code: 'supa', message: error ? error.message : 'sin código' };
@@ -1406,14 +1417,28 @@ function lienzoDe(img, max, rot = 0) {
   g.drawImage(img, 0, 0, w, h);
   return c;
 }
-async function itemDesdeImagen(img) {
-  const grande = lienzoDe(img, 1024);
-  const blob = await new Promise(r => grande.toBlob(r, 'image/jpeg', 0.82));
+// Cada foto se guarda en dos tamaños: una miniatura liviana dentro de la prenda (listas, etiquetas, catálogo)
+// y la foto grande, en buena calidad, en el almacenamiento de Supabase (detalle, catálogo al tocarla, Claude).
+const FOTO_MINI = 360, FOTO_GRANDE = 1600;
+async function fotosDe(img) {
+  const grande = lienzoDe(img, FOTO_GRANDE);
+  const blob = await new Promise(r => grande.toBlob(r, 'image/jpeg', 0.86));
   if (!blob) throw new Error('imagen');
-  return nuevoItem({ vista: grande.toDataURL('image/jpeg', 0.72), foto: lienzoDe(grande, 280).toDataURL('image/jpeg', 0.6), blob });
+  return { grande, blob, mini: lienzoDe(grande, FOTO_MINI).toDataURL('image/jpeg', 0.72) };
 }
+async function itemDesdeImagen(img) {
+  const { grande, blob, mini } = await fotosDe(img);
+  return nuevoItem({ vista: lienzoDe(grande, 1024).toDataURL('image/jpeg', 0.75), foto: mini, blob });
+}
+// Sube la foto grande (solo en la versión con Supabase). Si falla, la prenda se queda con la miniatura.
+async function subirFotoGrande(id, blob) {
+  if (!blob || !backend.subirFoto) return '';
+  try { return await backend.subirFoto(id, blob); }
+  catch (e) { console.warn('foto grande', e); toast('La foto en buena calidad no se pudo subir; quedó la pequeña.', 'mal'); return ''; }
+}
+const fotoDe = p => p.fotoUrl || p.foto || '';
 async function itemDesdeFoto(file) {
-  const img = await cargarImagen(file, 1024);
+  const img = await cargarImagen(file, FOTO_GRANDE);
   try { return await itemDesdeImagen(img); }
   finally { soltarImagen(img); }
 }
@@ -1745,6 +1770,7 @@ async function guardarItem() {
     color: it.color || '', genero: generoDe(it), compraId: c ? c.id : '', costo: costoItem(it), costoFijo: !c, precio: it.precio,
     estado: 'disponible', creada: Date.now(), foto: it.foto || '', impresa: false, precioVenta: null, fechaVenta: null, ventaId: null,
   };
+  p.fotoUrl = await subirFotoGrande(p.id, it.blob);
   const ok = await escribir(() => backend.ponerPrenda(p));
   botones.forEach(b => { b.disabled = false; });
   if (!ok) return;
@@ -3091,7 +3117,11 @@ function abrirPrenda(id) {
       if (sug < p.precio) consejo = `<div class="aviso priv-todo"><p>Lleva ${d} días en la tienda. Si la rebaja a <b>${col(sug)}</b>, todavía gana <b>${col(sug - costo)}</b>.</p></div>`;
     }
   }
-  abrirHoja(`${p.foto ? `<img class="detalle-foto" src="${p.foto}" alt="Foto de ${esc(p.descripcion)}">` : ''}
+  abrirHoja(`${fotoDe(p) ? `<img class="detalle-foto" src="${esc(fotoDe(p))}" alt="Foto de ${esc(p.descripcion)}">` : ''}
+    <div class="foto-acciones">
+      <button type="button" class="btn btn-sec" data-accion="cambiar-foto" data-id="${esc(p.id)}">${ICON.camara} ${fotoDe(p) ? 'Cambiar la foto' : 'Ponerle foto'}</button>
+      ${fotoDe(p) ? `<button type="button" class="btn btn-sec" data-accion="girar-foto" data-id="${esc(p.id)}" aria-label="Girar la foto">${ICON.girar} Girar</button>` : ''}
+    </div>
     <p class="codigo">Código ${esc(p.codigo)}</p>
     <h2 class="sin-margen">${esc(p.descripcion)}</h2>
     <p>${esc(detalleLinea(p))}</p>
@@ -3114,6 +3144,46 @@ function abrirPrenda(id) {
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-prenda" data-id="${esc(p.id)}">Cambiar datos, costo o precio</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-prenda" data-id="${esc(p.id)}">Borrar prenda</button>
     </div>`, null, p.descripcion);
+}
+// Cambiar, girar o quitar la foto de una prenda (si se tomó mal o es de otra prenda)
+function abrirCambiarFoto(id) {
+  const p = buscar(id);
+  if (!p) return;
+  abrirHoja(`<h2>Foto de ${esc(p.descripcion)}</h2>
+    ${fotoDe(p) ? `<img class="detalle-foto" src="${esc(fotoDe(p))}" alt="Foto actual">` : '<p class="nota">Esta prenda no tiene foto.</p>'}
+    <div class="fotos-elegir">
+      <label class="btn btn-marca btn-enorme"><input type="file" accept="image/*" capture="environment" class="oculto" data-foto-prenda="${esc(p.id)}">${ICON.camara} Tomar una foto nueva</label>
+      <label class="btn btn-sec btn-enorme"><input type="file" accept="image/*" class="oculto" data-foto-prenda="${esc(p.id)}">${ICON.galeria} Elegir de la galería</label>
+      ${fotoDe(p) ? `<button type="button" class="btn btn-peligro btn-enorme" data-accion="quitar-foto" data-id="${esc(p.id)}">Quitar la foto</button>` : ''}
+      <button type="button" class="btn btn-sec btn-enorme" data-prenda="${esc(p.id)}">Volver</button>
+    </div>`, null, 'Cambiar foto');
+}
+async function guardarFotoPrenda(id, cambios, msg) {
+  if (await escribir(() => backend.actualizarPrenda(id, cambios))) { toast(msg, 'bien'); abrirPrenda(id); }
+}
+async function guardarImagenPrenda(id, img, msg) {
+  const { blob, mini } = await fotosDe(img);
+  toast('Guardando la foto…');
+  await guardarFotoPrenda(id, { foto: mini, fotoUrl: await subirFotoGrande(id, blob) }, msg);
+}
+async function fotoNuevaPrenda(id, file) {
+  if (!file) return;
+  toast('Preparando la foto…');
+  let img = null;
+  try { img = await cargarImagen(file, FOTO_GRANDE); }
+  catch (e) { toast('No se pudo leer esa foto. Pruebe con otra.', 'mal'); return; }
+  try { await guardarImagenPrenda(id, img, 'Foto cambiada.'); }
+  finally { soltarImagen(img); }
+}
+// Gira un cuarto de vuelta, a partir de la mejor foto que tenga
+async function girarFotoPrenda(id) {
+  const p = buscar(id);
+  if (!p || !fotoDe(p)) return;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = fotoDe(p);
+  try { await img.decode(); } catch (e) { toast('No se pudo girar la foto.', 'mal'); return; }
+  await guardarImagenPrenda(id, lienzoDe(img, FOTO_GRANDE, 90), 'Foto girada.');
 }
 function abrirEditar(id) {
   const p = buscar(id);
@@ -3340,8 +3410,8 @@ const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
 // En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
 const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
 const BT = { disp: null, car: null };
-// La lista de Bluetooth muestra solo la impresora de la tienda (se llama «Thermo print»)
-const BT_NOMBRES = ['Thermo', 'THERMO', 'thermo', 'HOP-', 'HL2200'];
+// La lista de Bluetooth muestra solo la impresora de la tienda (se llama «Thermal printer»)
+const BT_NOMBRES = ['Thermal', 'THERMAL', 'thermal', 'HOP-', 'HL2200'];
 // Si se mandan muchas seguidas, la impresora se traba: cada 2 etiquetas descansa un rato
 const BT_CADA = 2, BT_DESCANSO = 3000;
 const hayBluetooth = () => !!navigator.bluetooth;
@@ -3428,7 +3498,7 @@ async function imprimirBluetooth(lista, boton) {
     }
     toast(lista.length > 1 ? `Listo: se mandaron ${lista.length} etiquetas a la impresora.` : 'Listo: se mandó la etiqueta a la impresora.', 'bien');
   } catch (e) {
-    if (e && e.name === 'NotFoundError') toast('No se eligió la impresora. Si no aparece «Thermo print» en la lista, revise que esté encendida y cerca.');
+    if (e && e.name === 'NotFoundError') toast('No se eligió la impresora. Si no aparece «Thermal printer» en la lista, revise que esté encendida y cerca.');
     else if (e && e.code === 'bt_sin_canal') toast('Se conectó, pero esa impresora no deja mandarle etiquetas. ¿Eligió la impresora correcta?', 'mal');
     else { BT.car = null; console.error(e); toast(`No se pudo imprimir. Revise que la impresora esté encendida y que la app Diabel esté cerrada, y vuelva a intentar. (${(e && (e.message || e.code)) || e})`, 'mal'); }
   }
@@ -3900,6 +3970,11 @@ document.addEventListener('click', async e => {
     }
     case 'marcar-impresas': if (hojaCtx && hojaCtx.lista) { el.disabled = true; await marcarImpresas(hojaCtx.lista); } break;
     case 'editar-prenda': abrirEditar(id); break;
+    case 'cambiar-foto': abrirCambiarFoto(id); break;
+    case 'girar-foto': el.disabled = true; await girarFotoPrenda(id); break;
+    case 'quitar-foto':
+      confirmar('¿Quitar la foto?', 'La prenda queda sin foto, en la tienda y en el catálogo. Después le puede poner otra.', 'Sí, quitarla', () => guardarFotoPrenda(id, { foto: '', fotoUrl: '' }, 'Foto quitada.'));
+      break;
     case 'guardar-edicion': guardarEdicion(id, el); break;
     case 'elegir-cliente': abrirClientes(true); break;
     case 'cliente-nuevo': abrirFormCliente(null, hojaCtx && hojaCtx.paraVenta); break;
@@ -3976,6 +4051,7 @@ document.addEventListener('change', e => {
   if (t.matches('[data-fotos]')) { const f = Array.from(t.files || []); t.value = ''; if (t.closest('#camara')) cerrarCamara(); agregarFotos(f); }
   else if (t.id === 'inEscFoto') { const f = t.files && t.files[0]; t.value = ''; escanearFoto(f); }
   else if (t.id === 'inRespaldo') { const f = t.files && t.files[0]; t.value = ''; cargarRespaldo(f); }
+  else if (t.dataset && t.dataset.fotoPrenda) { const f = t.files && t.files[0]; t.value = ''; fotoNuevaPrenda(t.dataset.fotoPrenda, f); }
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;

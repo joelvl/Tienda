@@ -55,15 +55,25 @@ const cabeceras = () => { const h: Record<string, string> = { apikey: LLAVE, "Co
 async function verFotos(args: Record<string, any>) {
   const codigos = (Array.isArray(args.codigos) ? args.codigos : []).slice(0, 6).map((c: unknown) => { const t = String(c ?? "").trim(); return /^\d{1,6}$/.test(t) ? t.padStart(6, "0") : t; });
   if (!codigos.length) return [{ type: "text", text: "Diga los códigos de las prendas." }];
-  const r = await fetch(`${URL_SB}/rest/v1/prendas?select=codigo,foto&codigo=in.(${codigos.map(encodeURIComponent).join(",")})`, { headers: cabeceras() });
+  const r = await fetch(`${URL_SB}/rest/v1/prendas?select=codigo,foto,foto_url&codigo=in.(${codigos.map(encodeURIComponent).join(",")})`, { headers: cabeceras() });
   if (!r.ok) throw new Error(`fotos: ${r.status}`);
-  const fotos = new Map((await r.json()).map((x: { codigo: string; foto: string }) => [x.codigo, x.foto]));
+  const filas: { codigo: string; foto: string; foto_url: string }[] = await r.json();
+  const fotos = new Map(filas.map((x) => [x.codigo, x.foto]));
+  // La foto grande (buena calidad) si la hay: así Claude ve mejor la prenda
+  const grandes = new Map<string, string>();
+  await Promise.all(filas.filter((x) => x.foto_url && x.foto_url.startsWith(`${URL_SB}/storage/`)).map(async (x) => {
+    try {
+      const g = await fetch(x.foto_url);
+      const b = new Uint8Array(await g.arrayBuffer());
+      if (g.ok && b.length < 3_000_000) { let t = ""; for (let i = 0; i < b.length; i += 0x8000) t += String.fromCharCode(...b.subarray(i, i + 0x8000)); grandes.set(x.codigo, `data:${g.headers.get("content-type") || "image/jpeg"};base64,${btoa(t)}`); }
+    } catch { /* se usa la miniatura */ }
+  }));
   const datos = await cargar(), salida: unknown[] = [];
   for (const c of codigos) {
     const p = datos.prendas.find((x) => x.codigo === c);
     if (!p) { salida.push({ type: "text", text: `${c}: no existe esa prenda.` }); continue; }
     salida.push({ type: "text", text: JSON.stringify(datosParaFoto(p, datos)) });
-    const f = String(fotos.get(c) ?? ""), m = f.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+    const f = String(grandes.get(c) ?? fotos.get(c) ?? ""), m = f.match(/^data:(image\/[a-z]+);base64,(.+)$/);
     salida.push(m ? { type: "image", mimeType: m[1], data: m[2] } : { type: "text", text: `${c}: no tiene foto.` });
   }
   return salida;
