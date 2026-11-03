@@ -2693,9 +2693,9 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
     g.fillText(recortar(g, p.talla, wTalla - 1.2 * u), xT + wTalla / 2, y + 2.3 * u);
     g.textAlign = 'left';
   }
-  const sPrecio = ajustar(col(p.precio), 700, 6.6 * u, 3 * u, ancho - (wTalla ? wTalla + 1.5 * u : 0));
+  const sPrecio = ajustar(nf.format(p.precio), 700, 6.6 * u, 3 * u, ancho - (wTalla ? wTalla + 1.5 * u : 0));
   g.textBaseline = 'alphabetic';
-  g.fillText(col(p.precio), m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
+  g.fillText(nf.format(p.precio), m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
   y += hPrecio + 1 * u + extra;
 
   // Código de barras
@@ -2791,7 +2791,6 @@ const BT_SERVICIOS = [
   0x18f0, 0xff00, 0xffe0, 0xfff0, 0xae30, 0xae00, 0xfee7, 0xff10,
   '49535343-fe7d-4ae5-8fa9-9fafd205e455', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
 ];
-const BT_PUNTOS_MM = 8;          // 203 dpi
 const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
 // En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
 const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
@@ -2824,42 +2823,50 @@ async function enviarBT(bytes) {
     else await c.writeValue(parte);
   }
 }
-// Imagen a 1 bit para el comando BITMAP de TSPL (0 = punto negro)
-function bitsTspl(c) {
-  const W = c.width, H = c.height, bw = Math.ceil(W / 8);
-  const px = c.getContext('2d').getImageData(0, 0, W, H).data;
-  const out = new Uint8Array(bw * H).fill(0xff);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = (y * W + x) * 4;
-    if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 < 140) out[y * bw + (x >> 3)] &= ~(0x80 >> (x & 7));
-  }
-  return { bw, H, out };
+// La etiqueta con las letras propias de la impresora (TSPL), igual que la página de prueba: pocos datos y siempre imprime.
+// Esas letras no traen tildes ni ₡, así que se quitan. Medidas en puntos (8 por mm).
+const sinTildes = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e]/g, '').replace(/"/g, "'");
+function tsplEtiqueta(p, t) {
+  const A = Math.round(Math.min(t.w - BT_CORRIDO_X, BT_ANCHO_CABEZAL) * 8), B = Math.round((t.h - BT_CORRIDO_Y) * 8);
+  const nombre = sinTildes(S.config.nombre || 'Mi tienda').toUpperCase();
+  const fNombre = nombre.length * 24 <= A - 16 ? ['4', 24] : ['3', 16];
+  const nom = nombre.slice(0, Math.floor((A - 16) / fNombre[1]));
+  // La descripción va en letra mediana; si no cabe, en letra chica, y se corta entre palabras
+  const d0 = sinTildes(p.descripcion || p.tipo);
+  const fDesc = d0.length * 16 <= A - 32 ? ['3', 16] : ['2', 12];
+  const max = Math.floor((A - 32) / fDesc[1]);
+  const desc = d0.length <= max ? d0 : (d0.slice(0, max + 1).replace(/\s+\S*$/, '') || d0.slice(0, max));
+  const talla = sinTildes(p.talla).slice(0, 3);
+  const cod = String(p.codigo), w8 = S.config.whatsapp || '';
+  const tel = w8.length === 8 ? `${w8.slice(0, 4)}-${w8.slice(4)}` : w8;
+  const modulo = 68 * 3 <= A - 32 ? 3 : 2;
+  const alto = Math.max(40, B - 204), yPie = Math.max(B - 30, 164 + alto + 6);
+  const l = [
+    'CLS',
+    `TEXT ${Math.max(8, Math.round(A / 2 - nom.length * fNombre[1] / 2))},14,"${fNombre[0]}",0,1,1,"${nom}"`,
+    `BAR 16,52,${A - 32},2`,
+    `TEXT 16,${fDesc[0] === '3' ? 62 : 66},"${fDesc[0]}",0,1,1,"${desc}"`,
+    `TEXT 16,96,"5",0,1,1,"${nf.format(p.precio)}"`,
+  ];
+  if (talla) l.push(`BOX ${A - 96},92,${A - 16},152,3`, `TEXT ${A - 86},98,"2",0,1,1,"TALLA"`, `TEXT ${Math.round(A - 56 - talla.length * 12)},120,"4",0,1,1,"${talla}"`);
+  l.push(`BARCODE ${Math.round(A / 2 - 34 * modulo)},164,"128",${alto},0,0,${modulo},${modulo},"${cod}"`);
+  if (tel) l.push(`TEXT 16,${yPie},"2",0,1,1,"${cod}"`, `TEXT ${A - 16 - tel.length * 12},${yPie},"2",0,1,1,"${tel}"`);
+  else l.push(`TEXT ${Math.round(A / 2 - cod.length * 6)},${yPie},"2",0,1,1,"${cod}"`);
+  l.push('PRINT 1,1', '');
+  return l.join('\r\n');
 }
 async function imprimirBluetooth(lista, boton) {
   const antes = boton.innerHTML;
   boton.textContent = 'Conectando con la impresora…';
   try {
     await conectarImpresora();
-    const t = tamanoEtiqueta(), ancho = Math.min(t.w - BT_CORRIDO_X, BT_ANCHO_CABEZAL), alto = t.h - BT_CORRIDO_Y;
+    const t = tamanoEtiqueta();
     const ascii = s => new TextEncoder().encode(s);
     await enviarBT(ascii(`SIZE ${t.w} mm,${t.h} mm\r\nGAP 2 mm,0 mm\r\nDIRECTION 1\r\n`));
     for (let i = 0; i < lista.length; i++) {
       boton.textContent = lista.length > 1 ? `Imprimiendo ${i + 1} de ${lista.length}…` : 'Imprimiendo…';
-      const b = bitsTspl(await dibujarEtiqueta(lista[i], BT_PUNTOS_MM, ancho, alto));
-      // Solo se mandan las franjas que tienen algo; las filas en blanco se saltan (menos datos, imprime más rápido)
-      const partes = [ascii('CLS\r\n')];
-      const vacia = y => b.out.subarray(y * b.bw, (y + 1) * b.bw).every(v => v === 0xff);
-      for (let y = 0; y < b.H;) {
-        if (vacia(y)) { y++; continue; }
-        let fin = y; while (fin < b.H && (!vacia(fin) || (fin + 1 < b.H && !vacia(fin + 1)))) fin++;
-        partes.push(ascii(`BITMAP 0,${y},${b.bw},${fin - y},0,`), b.out.slice(y * b.bw, fin * b.bw), ascii('\r\n'));
-        y = fin;
-      }
-      partes.push(ascii('PRINT 1,1\r\n'));
-      const todo = new Uint8Array(partes.reduce((n, x) => n + x.length, 0));
-      partes.reduce((n, x) => { todo.set(x, n); return n + x.length; }, 0);
-      await enviarBT(todo);
-      if (i < lista.length - 1) await espera(800);
+      await enviarBT(ascii(tsplEtiqueta(lista[i], t)));
+      if (i < lista.length - 1) await espera(500);
     }
     toast(lista.length > 1 ? `Listo: se mandaron ${lista.length} etiquetas a la impresora.` : 'Listo: se mandó la etiqueta a la impresora.', 'bien');
   } catch (e) {
