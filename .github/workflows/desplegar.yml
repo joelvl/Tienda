@@ -32,23 +32,23 @@ jobs:
           version: latest
 
       - name: Conectar con el proyecto
-        run: supabase link --project-ref "$PROJECT_REF"
+        run: supabase link --project-ref "$PROJECT_REF" --yes
 
       - name: Aplicar cambios a la base de datos
-        run: supabase db push --linked
+        run: supabase db push --remote --yes
 
       - name: Guardar la llave de Claude en Supabase
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -n "$ANTHROPIC_API_KEY" ]; then
-            supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" --project-ref "$PROJECT_REF"
+            supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" --project-ref "$PROJECT_REF" --yes
           else
             echo "::warning::Sin ANTHROPIC_API_KEY: la tienda funciona, pero sin reconocimiento de fotos."
           fi
 
       - name: Publicar la función de reconocimiento
-        run: supabase functions deploy clasificar --project-ref "$PROJECT_REF"
+        run: supabase functions deploy clasificar --project-ref "$PROJECT_REF" --yes
 
   pagina:
     name: Página web (GitHub Pages)
