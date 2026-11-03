@@ -141,3 +141,6 @@ Si borra o bloquea un usuario en Supabase, ese Claude pierde el acceso en menos 
 Cada foto se guarda en dos tamaños: una miniatura liviana dentro de la prenda (para que las listas carguen rápido) y la foto en buena calidad (hasta 1600 px) en el almacenamiento «fotos» de Supabase, que se ve en el detalle de la prenda, en el catálogo al tocar la foto, y la usa Claude con el conector. Las fotos que se subieron antes de este cambio solo tienen la miniatura: para verlas mejor, cámbielas.
 
 En el detalle de cada prenda: **Cambiar la foto** (tomar una nueva o elegir de la galería), **Girar** y **Quitar la foto**.
+
+## Videos de ayuda
+En `publico/videos/celular/` y `publico/videos/tableta/` hay un video corto por cada parte de la tienda (con voz y letreros). Se publican con la página en `…/videos/celular/01-la-pantalla-de-inicio.mp4`, etc.

@@ -1,7 +1,7 @@
 // Arma la carpeta dist/ que se publica en GitHub Pages.
 // Inserta en index.html, catalogo.html, pedido.html y conectar.html la dirección de Supabase y la llave pública (publicable),
 // más lo necesario para instalar la tienda en la pantalla de inicio del celular.
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const url = process.env.SUPABASE_URL;
 // La llave publicable (sb_publishable_...) o, en proyectos viejos, la llave anon.
@@ -80,5 +80,7 @@ copyFileSync("impresora.html", "dist/impresora.html");
 for (const f of ["manifest.webmanifest", "catalogo.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
   copyFileSync(`publico/${f}`, `dist/${f}`);
 }
+// Videos de ayuda (cómo usar la tienda), en versión celular y tableta
+if (existsSync("publico/videos")) cpSync("publico/videos", "dist/videos", { recursive: true });
 writeFileSync("dist/.nojekyll", "");
 console.log("Sitio listo en dist/");
