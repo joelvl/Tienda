@@ -61,6 +61,10 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .prenda{background:var(--superficie);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 .foto{aspect-ratio:1;background:var(--superficie-2);display:grid;place-items:center;color:var(--tinta-suave)}
 .foto img{width:100%;height:100%;object-fit:cover;display:block}
+.ver-grande{appearance:none;border:0;padding:0;margin:0;width:100%;height:100%;background:none;cursor:zoom-in;display:block}
+.grande{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;cursor:zoom-out}
+.grande img{max-width:100%;max-height:calc(100vh - 110px);object-fit:contain;border-radius:10px;background:#fff}
+.cerrar-grande{appearance:none;border:0;border-radius:999px;background:#fff;color:#221F3B;font:inherit;font-weight:700;min-height:48px;padding:0 24px;cursor:pointer}
 .foto svg{width:48px;height:48px}
 .info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
 .precio{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -93,6 +97,7 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
   <div class="grid" id="grid"></div>
   <div id="pie"></div>
 </main>
+<div id="grande" class="grande" role="dialog" aria-label="Foto grande" hidden><img id="grandeImg" alt=""><button type="button" class="cerrar-grande">Cerrar</button></div>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -102,7 +107,7 @@ const normal = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 const PERCHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2c0 1-2 1.5-2 3l9 7.5a1 1 0 0 1-.6 1.8H3.6a1 1 0 0 1-.6-1.8L12 8"/></svg>';
 const WA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>';
 const POR_PAGINA = 48;
-const E = { prendas: [], tienda: { nombre: 'Catálogo', whatsapp: '' }, tipo: '', talla: '', q: '', mostrar: POR_PAGINA, fotos: new Map(), pedidas: new Set() };
+const E = { prendas: [], tienda: { nombre: 'Catálogo', whatsapp: '' }, tipo: '', talla: '', q: '', mostrar: POR_PAGINA, fotos: new Map(), grandes: new Map(), pedidas: new Set() };
 
 async function rpc(nombre, cuerpo) {
   const cfg = window.MI_TIENDA_CONFIG;
@@ -133,6 +138,11 @@ function filtradas() {
 function chips(cont, valores, actual, campo) {
   cont.innerHTML = [['', 'Todo'], ...valores.map(v => [v, v])].map(([v, t]) => `<button type="button" class="chip" data-${campo}="${esc(v)}" aria-pressed="${v === actual}">${esc(t)}</button>`).join('');
 }
+// La miniatura en la lista; si hay foto grande, al tocarla se ve en buena calidad
+function htmlFoto(codigo, desc) {
+  const img = `<img src="${esc(E.fotos.get(codigo))}" alt="${esc(desc)}">`;
+  return E.grandes.has(codigo) ? `<button type="button" class="ver-grande" data-grande="${esc(codigo)}" aria-label="Ver la foto grande de ${esc(desc)}">${img}</button>` : img;
+}
 function pintar() {
   const cuentaTipo = new Map();
   for (const p of E.prendas) cuentaTipo.set(p.tipo, (cuentaTipo.get(p.tipo) || 0) + 1);
@@ -153,7 +163,7 @@ function pintar() {
   $('#grid').innerHTML = lista.slice(0, E.mostrar).map(p => {
     const f = E.fotos.get(p.codigo), wa = enlaceQuiero(p);
     return `<article class="prenda">
-      <div class="foto" data-codigo="${esc(p.conFoto ? p.codigo : '')}">${f ? `<img src="${f}" alt="${esc(p.descripcion)}">` : PERCHA}</div>
+      <div class="foto" data-codigo="${esc(p.conFoto ? p.codigo : '')}">${f ? htmlFoto(p.codigo, p.descripcion) : PERCHA}</div>
       ${enOferta(p) ? `<span class="sello">−${esc(p.descuento)} %</span>` : ''}
       <div class="info"><span class="precio">${enOferta(p) ? `<s aria-label="Antes ${col(p.precio)}">${col(p.precio)}</s><span class="oferta">${col(precioActual(p))}</span>` : col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
         <span class="meta">${esc(meta(p))}</span><span class="meta">Código ${esc(p.codigo)}</span>
@@ -185,17 +195,21 @@ async function traerFotos() {
   if (cola.size) timer = setTimeout(traerFotos, 60);
   try {
     const filas = await rpc('catalogo_fotos', { codigos });
-    for (const { codigo, foto } of filas) {
-      if (!foto) continue;
-      E.fotos.set(codigo, foto);
+    for (const { codigo, foto, foto_url } of filas) {
+      if (!foto && !foto_url) continue;
+      E.fotos.set(codigo, foto || foto_url);
+      if (foto_url) E.grandes.set(codigo, foto_url);
       const el = document.querySelector(`.foto[data-codigo="${CSS.escape(codigo)}"]`);
       const p = E.prendas.find(x => x.codigo === codigo);
-      if (el) el.innerHTML = `<img src="${foto}" alt="${esc(p ? p.descripcion : '')}">`;
+      if (el) el.innerHTML = htmlFoto(codigo, p ? p.descripcion : '');
     }
   } catch (e) { codigos.forEach(c => E.pedidas.delete(c)); console.warn(e); }
 }
 
 document.addEventListener('click', e => {
+  const g = e.target.closest('[data-grande]');
+  if (g) { const p = E.prendas.find(x => x.codigo === g.dataset.grande); $('#grandeImg').src = E.grandes.get(g.dataset.grande); $('#grandeImg').alt = p ? p.descripcion : ''; $('#grande').hidden = false; return; }
+  if (e.target.closest('#grande')) { $('#grande').hidden = true; $('#grandeImg').removeAttribute('src'); return; }
   const t = e.target.closest('[data-tipo],[data-talla],#verMas');
   if (!t) return;
   if (t.id === 'verMas') { E.mostrar += POR_PAGINA; pintar(); return; }
@@ -203,6 +217,7 @@ document.addEventListener('click', e => {
   else E.talla = t.dataset.talla;
   E.mostrar = POR_PAGINA; pintar();
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#grande').hidden) { $('#grande').hidden = true; $('#grandeImg').removeAttribute('src'); } });
 let tq = 0;
 $('#q').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { E.q = e.target.value; E.mostrar = POR_PAGINA; pintar(); }, 150); });
 
