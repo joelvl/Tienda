@@ -110,6 +110,7 @@ async function buscar() {
   try {
     const d = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: SERVICIOS });
     E.dispositivo = d;
+    d.addEventListener('gattserverdisconnected', () => anotar('(La impresora se desconectó)'));
     anotar(`\nImpresora: ${d.name || '(sin nombre)'}  id ${d.id}`);
     const gatt = await d.gatt.connect();
     anotar('Conectada por Bluetooth LE.');
@@ -139,7 +140,17 @@ async function buscar() {
 }
 
 // Manda en pedazos de 20 bytes: es lo que aceptan todas las impresoras BLE, aunque algunas soporten más
+// Si la impresora cortó la conexión (se durmió o se apagó), se vuelve a conectar sola
+async function asegurarConexion() {
+  if (E.dispositivo.gatt.connected) return;
+  anotar('La impresora estaba desconectada; reconectando…');
+  const gatt = await E.dispositivo.gatt.connect();
+  const sv = await gatt.getPrimaryService(E.escribir.service.uuid);
+  E.escribir = await sv.getCharacteristic(E.escribir.uuid);
+  anotar('Reconectada.');
+}
 async function enviar(bytes) {
+  await asegurarConexion();
   const c = E.escribir;
   const sinRespuesta = c.properties.writeWithoutResponse;
   for (let i = 0; i < bytes.length; i += 20) {
