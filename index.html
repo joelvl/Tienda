@@ -260,6 +260,10 @@ th{font-size:15px;color:var(--tinta-suave)}
 .fila-abono{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--superficie);border-radius:14px;padding:10px 14px;margin:8px 0}
 .fila-abono b{font-size:20px;font-variant-numeric:tabular-nums}
 .fila-abono .btn{min-height:44px;font-size:16px;padding:6px 12px}
+.fila-pedido{grid-template-columns:56px minmax(0,1fr) auto}
+.fp-botones{display:grid;gap:6px}
+.fp-botones .btn{min-height:44px;font-size:16px;padding:6px 12px}
+.fila-pedido .nota .ico{width:18px;height:18px;vertical-align:-4px}
 .caja-abono{background:var(--superficie);border-radius:14px;padding:4px 14px 14px;margin:10px 0}
 .venta-cliente{background:var(--superficie);border-radius:14px;padding:12px 14px;margin:10px 0}
 .venta-cliente .vc-cab{display:flex;justify-content:space-between;gap:10px;font-weight:700;margin-bottom:6px}
@@ -1940,6 +1944,14 @@ function ventaPorCodigo(v) {
   else if (!res.length) toast('No encontramos esa prenda. Revise el código.', 'mal');
 }
 async function deshacerVenta(id) {
+  const p = buscar(id), a = p && apartadoPorId(p.apartadoId);
+  // Si se la llevó de un pedido, vuelve a quedar apartada en ese pedido
+  if (a && a.estado !== 'cancelado') {
+    const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'apartada', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null }));
+    if (ok && a.estado === 'entregado') await escribir(() => backend.ponerApartado({ ...a, estado: 'apartado', entregado: null }));
+    if (ok) { cerrarHoja(); toast(`Listo: la prenda volvió a estar apartada en el pedido #${a.numero}.`); }
+    return;
+  }
   const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null, apartadoId: null }));
   if (ok) { cerrarHoja(); toast('Venta deshecha. La prenda volvió a la tienda.'); }
 }
@@ -2691,17 +2703,35 @@ const claveNueva = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), 
 const hayEnlacePedido = () => S.modo === 'supabase';
 const urlPedido = a => new URL('pedido.html?c=' + a.clave, location.href).href;
 function statsApartado(a) {
-  const abonos = abonosDe(a.id);
+  const abonos = abonosDe(a.id), ps = prendasDeApartado(a.id);
   const pagado = suma(abonos, b => b.monto), precio = Number(a.precio) || 0;
   const pct = precio > 0 ? Math.min(100, Math.floor(pagado / precio * 100)) : 100;
-  return { abonos, pagado, falta: Math.max(0, precio - pagado), pct, puedeEntregar: pct >= pctParaEntregar(), ultimo: abonos[abonos.length - 1] || null };
+  return { abonos, pagado, falta: Math.max(0, precio - pagado), pct, puedeEntregar: pct >= pctParaEntregar(), ultimo: abonos[abonos.length - 1] || null,
+    prendas: ps, retiradas: ps.filter(p => p.estado === 'vendida'), porRetirar: ps.filter(p => p.estado === 'apartada') };
+}
+// Lo que le toca a cada prenda del precio del pedido, repartido según su precio de etiqueta
+function partesPedido(a) {
+  const ps = prendasDeApartado(a.id);
+  const pesos = ps.map(p => Number(p.precio) || 0), base = suma(pesos, x => x), total = Number(a.precio) || 0;
+  const m = new Map();
+  let resto = total;
+  ps.forEach((p, i) => { const v = i === ps.length - 1 ? resto : Math.floor(total * (base ? pesos[i] / base : 1 / ps.length)); resto -= v; m.set(p.id, v); });
+  return m;
+}
+// Para llevarse una prenda suelta, lo pagado tiene que cubrir el porcentaje de Ajustes
+// de lo que valen las prendas que ya se llevó más esta.
+function paraRetirar(a, st, p, partes) {
+  const valor = suma(st.retiradas, x => partes.get(x.id)) + (partes.get(p.id) || 0);
+  const necesita = Math.ceil(valor * pctParaEntregar() / 100);
+  return { necesita, alcanza: st.pagado >= necesita };
 }
 const apartadoActivo = (a, st) => a.estado === 'apartado' || (a.estado === 'entregado' && st.falta > 0);
 function textoEstadoApartado(a, st) {
   if (a.estado === 'cancelado') return 'Cancelado';
   if (a.estado === 'entregado') return st.falta > 0 ? `Entregado, todavía debe ${col(st.falta)}` : 'Entregado y pagado';
-  if (!st.falta) return 'Pagado completo: ya puede entregarlo';
-  return st.puedeEntregar ? `Ya pagó el ${st.pct} %: puede entregarlo` : `Lleva el ${st.pct} % (se entrega con el ${pctParaEntregar()} %)`;
+  const ya = st.retiradas.length ? `Se llevó ${st.retiradas.length} de ${st.prendas.length} prendas. ` : '';
+  if (!st.falta) return ya + 'Pagado completo: ya puede entregarlo';
+  return ya + (st.puedeEntregar ? `Ya pagó el ${st.pct} %: puede entregarlo` : `Lleva el ${st.pct} % (se entrega con el ${pctParaEntregar()} %)`);
 }
 // " para María (pedido #12)"
 function textoDeApartado(p) {
@@ -2718,11 +2748,11 @@ function htmlBarraApartado(st) {
   return `<span class="prog ${st.puedeEntregar ? '' : 'falta'}" role="progressbar" aria-label="Pagado del pedido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><span style="width:${st.pct}%"></span></span>`;
 }
 function htmlFilaApartado(a) {
-  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = prendasDeApartado(a.id).length;
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = st.prendas.length;
   return `<button type="button" class="fila-cliente fila-apartado" data-accion="ver-apartado" data-id="${esc(a.id)}">
     <b>#${a.numero} · ${esc(cli ? cli.nombre : 'Sin cliente')}</b><span class="fc-total">${st.pct} %</span>
     ${htmlBarraApartado(st)}
-    <span class="nota">Pagó ${col(st.pagado)} de ${col(a.precio)} · ${plural(n, 'prenda', 'prendas')}${st.ultimo ? ` · último abono ${hace(st.ultimo.fecha)}` : ''}</span>
+    <span class="nota">Pagó ${col(st.pagado)} de ${col(a.precio)} · ${st.retiradas.length && a.estado === 'apartado' ? `se llevó ${st.retiradas.length} de ${n} prendas` : plural(n, 'prenda', 'prendas')}${st.ultimo ? ` · último abono ${hace(st.ultimo.fecha)}` : ''}</span>
     <span class="nota ${a.estado === 'apartado' && st.puedeEntregar ? 'verde' : ''}"><b>${esc(textoEstadoApartado(a, st))}</b></span>
   </button>`;
 }
@@ -2778,9 +2808,19 @@ function textoEstadoCuenta(a, st) {
 function abrirApartado(id) {
   const a = apartadoPorId(id);
   if (!a) { toast('No se encontró ese pedido.', 'mal'); return; }
-  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = st.prendas, partes = partesPedido(a);
   const abierto = a.estado === 'apartado', cobrando = a.estado !== 'cancelado' && st.falta > 0;
-  const btnEntregar = abierto ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} Entregar las prendas</button>` : '';
+  const btnEntregar = abierto && st.porRetirar.length ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} ${st.retiradas.length ? `Entregar las que faltan (${st.porRetirar.length})` : 'Entregar todas las prendas'}</button>` : '';
+  const filaPrenda = p => {
+    const r = p.estado === 'apartada' ? paraRetirar(a, st, p, partes) : null;
+    return `<div class="fila-vendida fila-pedido">${htmlFotoMini(p)}
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · le toca ${col(partes.get(p.id))} del pedido</span>
+        ${p.estado === 'vendida' ? `<br><span class="nota verde"><b>${ICON.check} Se la llevó el ${esc(fCorta.format(p.fechaVenta))}</b></span>`
+          : r && abierto ? `<br><span class="nota ${r.alcanza ? 'verde' : ''}"><b>${r.alcanza ? 'Ya puede llevársela' : `Para llevársela: tener pagado ${col(r.necesita)}`}</b></span>` : ''}</span>
+      ${r && abierto ? `<span class="fp-botones"><button type="button" class="btn ${r.alcanza ? 'btn-marca' : 'btn-sec'}" data-accion="retirar-prenda" data-id="${esc(p.id)}" aria-label="Entregarle ${esc(p.descripcion)}">Entregar</button>
+        <button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button></span>` : '<span></span>'}
+    </div>`;
+  };
   const ctx = abrirHoja(`<p class="codigo">Pedido ${esc(codigoPedido(a))}</p>
     <h2 class="sin-margen">Pedido #${a.numero}${cli ? ' de ' + esc(cli.nombre) : ''}</h2>
     <p class="nota">${cli ? `Tel. ${esc(telBonito(cli.telefono))} · ` : ''}hecho el ${esc(fLarga.format(a.creado))}${a.entregado ? ` · entregado el ${esc(fLarga.format(a.entregado))}` : ''}</p>
@@ -2797,11 +2837,9 @@ function abrirApartado(id) {
         <span><b>${col(b.monto)}</b><br><span class="nota">${esc(mayus(fLarga.format(b.fecha)))}</span></span>
         ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec" data-accion="quitar-abono" data-id="${esc(b.id)}" aria-label="Borrar abono de ${col(b.monto)}">Borrar</button>` : ''}
       </div>`).join('') : '<p class="nota">Todavía no ha dado ningún abono.</p>'}
-    <h3 class="grupo-sel">Prendas (${ps.length})</h3>
-    ${ps.length ? ps.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
-        <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · etiqueta ${col(p.precio)}</span></span>
-        ${abierto ? `<button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button>` : '<span></span>'}
-      </div>`).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
+    <h3 class="grupo-sel">Prendas (${ps.length})${st.retiradas.length && abierto ? ` · se llevó ${st.retiradas.length}` : ''}</h3>
+    ${abierto && st.porRetirar.length > 1 ? `<p class="nota">Si la clienta quiere llevarse una prenda ya, toque <b>Entregar</b> en esa prenda. Las demás siguen apartadas y el pedido sigue igual.</p>` : ''}
+    ${ps.length ? [...st.porRetirar, ...st.retiradas].map(filaPrenda).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
     <div class="botones-hoja">
       ${st.puedeEntregar ? btnEntregar : ''}
       ${cli && a.estado !== 'cancelado' ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(cli.telefono)}?text=${encodeURIComponent(textoEstadoCuenta(a, st))}" target="_blank" rel="noopener">${ICON.whatsapp} Enviarle cuánto lleva por WhatsApp</a>` : ''}
@@ -2864,41 +2902,55 @@ async function guardarPrecioApartado(id, btn) {
   if (precio < pagado) { toast(`Ya le pagó ${col(pagado)}: el precio no puede ser menos.`, 'mal'); return; }
   btn.disabled = true;
   if (await escribir(() => backend.ponerApartado({ ...a, precio }))) {
-    // si ya se entregó, las prendas vendidas toman el precio nuevo
-    if (a.estado === 'entregado') await repartirVenta({ ...a, precio }, prendasDeApartado(a.id), {});
+    // las prendas que ya se llevó toman su parte del precio nuevo
+    const ya = prendasDeApartado(a.id).filter(p => p.estado === 'vendida');
+    if (ya.length) await venderPrendasPedido({ ...a, precio }, ya, {});
     toast('Precio guardado.', 'bien'); abrirApartado(a.id);
   } else btn.disabled = false;
 }
-// Reparte el precio del apartado entre sus prendas, según el precio de etiqueta de cada una
-async function repartirVenta(a, ps, extra) {
-  const pesos = ps.map(p => Number(p.precio) || 0), base = suma(pesos, x => x);
-  let resto = Number(a.precio) || 0;
-  for (let i = 0; i < ps.length; i++) {
-    const v = i === ps.length - 1 ? resto : Math.floor(a.precio * (base ? pesos[i] / base : 1 / ps.length));
-    resto -= v;
-    if (!(await escribir(() => backend.actualizarPrenda(ps[i].id, { ...extra, precioVenta: v })))) return false;
-  }
+// Las prendas pasan a vendidas, cada una por su parte del precio del pedido
+async function venderPrendasPedido(a, ps, extra) {
+  const partes = partesPedido(a);
+  for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { ...extra, precioVenta: partes.get(p.id) || 0 })))) return false;
   return true;
+}
+// Una sola prenda: la clienta se la lleva y las demás siguen apartadas
+function retirarPrenda(id) {
+  const p = buscar(id), a = p && apartadoPorId(p.apartadoId);
+  if (!a || p.estado !== 'apartada' || a.estado !== 'apartado') return;
+  const st = statsApartado(a), partes = partesPedido(a), r = paraRetirar(a, st, p, partes);
+  const quedan = st.porRetirar.length - 1;
+  confirmar(`¿Entregarle ${esc(p.descripcion)}?`,
+    `${r.alcanza ? `Ya pagó ${col(st.pagado)}: le alcanza para llevársela.` : `<b>Ojo:</b> para llevársela debería tener pagado ${col(r.necesita)}, y lleva ${col(st.pagado)}.`}
+     La prenda pasa a vendida en ${col(partes.get(p.id))}. ${quedan ? `${quedan === 1 ? 'La otra prenda sigue apartada' : `Las otras ${quedan} prendas siguen apartadas`} y el pedido sigue igual: le faltan ${col(st.falta)}.` : 'Era la última prenda: el pedido queda entregado.'}`,
+    r.alcanza ? 'Sí, entregarla' : 'Entregarla igual', async () => {
+      const t = Date.now();
+      if (!(await venderPrendasPedido(a, [p], { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null }))) return;
+      if (!quedan && !(await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t })))) return;
+      toast(quedan ? `Listo: se llevó ${p.descripcion}. Le faltan ${col(st.falta)} del pedido.` : `Pedido #${a.numero} entregado.`, 'bien');
+      abrirApartado(a.id);
+    });
 }
 function entregarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
-  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), ps = st.porRetirar;
   if (!ps.length) { toast('Este pedido no tiene prendas para entregar.', 'mal'); return; }
-  confirmar(`¿Entregarle las prendas del pedido #${a.numero}?`,
-    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}Las ${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(a.precio)} en total.`,
+  const partes = partesPedido(a);
+  confirmar(`¿Entregarle ${st.retiradas.length ? 'las prendas que faltan' : 'las prendas'} del pedido #${a.numero}?`,
+    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(suma(ps, p => partes.get(p.id)))}${st.retiradas.length ? ' (lo que les toca del pedido)' : ' en total'}.`,
     'Sí, entregar', async () => {
       const t = Date.now();
-      const ok = await repartirVenta(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
+      const ok = await venderPrendasPedido(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
       if (ok && await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t }))) { toast(`Pedido #${a.numero} entregado.`, 'bien'); abrirApartado(a.id); }
     });
 }
 function cancelarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
-  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), ps = st.porRetirar;
   confirmar(`¿Cancelar el pedido #${a.numero}?`,
-    `Las ${plural(ps.length, 'prenda vuelve', 'prendas vuelven')} a la tienda.${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
+    `${ps.length ? `${ps.length === 1 ? 'La prenda que no se ha llevado vuelve' : `Las ${ps.length} prendas que no se ha llevado vuelven`} a la tienda.` : ''}${st.retiradas.length ? ` ${plural(st.retiradas.length, 'prenda que ya se llevó queda', 'prendas que ya se llevó quedan')} como vendidas.` : ''}${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
     'Sí, cancelar pedido', async () => {
       for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { estado: 'disponible', apartadoId: null })))) return;
       if (await escribir(() => backend.ponerApartado({ ...a, estado: 'cancelado' }))) { toast(`Pedido #${a.numero} cancelado. Las prendas volvieron a la tienda.`); abrirApartado(a.id); }
@@ -3820,6 +3872,7 @@ document.addEventListener('click', async e => {
     case 'editar-apartado': abrirEditarApartado(id); break;
     case 'guardar-precio-apartado': guardarPrecioApartado(id, el); break;
     case 'entregar-apartado': entregarApartado(id); break;
+    case 'retirar-prenda': retirarPrenda(id); break;
     case 'cancelar-apartado': cancelarApartado(id); break;
     case 'copiar-enlace-pedido': copiarEnlacePedido(id); break;
     case 'etiqueta-pedido': { const a = apartadoPorId(id); if (a) abrirEtiquetas([etiquetaDePedido(a)], `Etiqueta del pedido #${a.numero}`); break; }
