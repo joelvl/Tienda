@@ -1,5 +1,5 @@
 // Arma la carpeta dist/ que se publica en GitHub Pages.
-// Inserta en index.html y catalogo.html la dirección de Supabase y la llave pública (publicable),
+// Inserta en index.html, catalogo.html y pedido.html la dirección de Supabase y la llave pública (publicable),
 // más lo necesario para instalar la tienda en la pantalla de inicio del celular.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -50,6 +50,19 @@ catalogo = catalogo.replace(marca, [
   `<meta name="apple-mobile-web-app-title" content="Catálogo">`,
 ].join("\n"));
 writeFileSync("dist/catalogo.html", catalogo);
+// Enlace de cada apartado para el cliente (pedido.html?c=...): igual, solo la dirección y la llave pública.
+let pedido = readFileSync("pedido.html", "utf8");
+if (!pedido.includes(marca)) {
+  console.error(`No se encontró ${marca} en pedido.html`);
+  process.exit(1);
+}
+pedido = pedido.replace(marca, [
+  `<script>window.MI_TIENDA_CONFIG=${JSON.stringify({ supabaseUrl: url, supabaseAnonKey: clave }).replace(/</g, "\\u003c")};</script>`,
+  `<meta name="theme-color" content="#C92A62">`,
+  `<link rel="icon" href="icono-192.png">`,
+  `<link rel="apple-touch-icon" href="icono-180.png">`,
+].join("\n"));
+writeFileSync("dist/pedido.html", pedido);
 // Página de prueba de la impresora Bluetooth (no necesita configuración)
 copyFileSync("impresora.html", "dist/impresora.html");
 for (const f of ["manifest.webmanifest", "catalogo.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {
