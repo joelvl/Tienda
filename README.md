@@ -15,6 +15,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `supabase/migrations/…_catalogo.sql` | WhatsApp de la tienda y las dos funciones públicas que usa el catálogo. |
 | `supabase/migrations/…_apartados.sql` | Apartados y sus abonos, prendas apartadas y la función pública `pedido_ver` del enlace del cliente. |
 | `supabase/migrations/…_ofertas.sql` | Descuento (porcentaje) de cada prenda y el catálogo con el precio de oferta. |
+| `supabase/migrations/…_pedido_retiros.sql` | El enlace del cliente muestra qué prendas del pedido ya se llevó. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
@@ -115,6 +116,8 @@ Para hacer un pedido: en **Vender** escanee las prendas, elija la clienta y toqu
 En **Pedidos** están todos, con lo que ha pagado cada clienta. En cada pedido puede registrar abonos (monto y fecha), quitar prendas, cambiar el precio, imprimir la **etiqueta del pedido** (nombre y teléfono de la clienta, número de pedido y cuántas prendas) y mandarle por WhatsApp cuánto lleva con el enlace a su pedido (`…/pedido.html?c=…`, solo en la versión con Supabase).
 
 Al escanear la etiqueta del pedido (código `P0012`) se abre el pedido. Cuando la clienta llega al porcentaje de **Ajustes** (50 % al inicio), la tienda avisa que ya se puede entregar. Al **entregar**, las prendas pasan a vendidas y el precio del pedido se reparte entre ellas; si todavía debe algo, se siguen anotando sus abonos. Al **cancelar**, las prendas vuelven a la tienda.
+
+La clienta también se puede llevar **una prenda suelta** mientras sigue pagando: en el pedido, toque **Entregar** en esa prenda. Se puede cuando lo pagado cubre el porcentaje de Ajustes de lo que valen las prendas que se lleva (cada prenda vale su parte del precio del pedido, según su precio de etiqueta). Las demás siguen apartadas, el pedido sigue con el mismo monto y se ve cuáles ya se llevó, en la tienda y en el enlace del cliente.
 
 ## Ofertas
 En **Prendas** toque **Poner prendas en oferta**, toque las prendas (o **Elegir las que se ven**, después de filtrar) y luego **Ponerles descuento**: 10, 15, 20, 25, 30, 40, 50 % u otro. También se puede desde cada prenda con **Poner en oferta**.

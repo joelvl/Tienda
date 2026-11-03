@@ -61,6 +61,7 @@ h2{font-size:20px;margin:24px 0 8px}
 .cifras dd{margin:0;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 @media (max-width:360px){.cifras{grid-template-columns:1fr}}
 .verde{color:var(--gana)}
+.ya{color:var(--gana);font-weight:700;font-size:16px}
 .fila{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--superficie);border-radius:14px;padding:10px 14px;margin:8px 0}
 .fila b{font-variant-numeric:tabular-nums}
 .prenda{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--superficie);border-radius:14px;padding:10px;margin:8px 0}
@@ -89,6 +90,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const col = n => '₡' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const fLarga = new Intl.DateTimeFormat('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const fCorta = new Intl.DateTimeFormat('es-CR', { day: 'numeric', month: 'short' });
 const mayus = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 const PERCHA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7a2 2 0 1 1 2-2c0 1-2 1.5-2 3l9 7.5a1 1 0 0 1-.6 1.8H3.6a1 1 0 0 1-.6-1.8L12 8"/></svg>';
 const WA = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2z"/></svg>';
@@ -115,6 +117,7 @@ function pintar(d) {
     : d.estado === 'entregado' ? (falta ? `Ya se le entregaron sus prendas. Le faltan ${col(falta)}.` : '¡Pagado y entregado! Muchas gracias.')
     : falta ? `Le faltan ${col(falta)}` : '¡Ya está pagado completo!';
   const listo = d.estado !== 'cancelado' && !falta;
+  const nRet = prendas.filter(p => p.retirada).length;
   const tel = telWhatsApp(tienda.whatsapp);
   const texto = `¡Hola! Le escribo por mi pedido #${d.numero}${d.cliente ? ' (' + d.cliente + ')' : ''}.`;
   $('#cont').innerHTML = `<section class="tarjeta">
@@ -130,9 +133,10 @@ function pintar(d) {
     </section>
     <h2>Sus abonos (${abonos.length})</h2>
     ${abonos.length ? abonos.slice().reverse().map(b => `<div class="fila"><span>${esc(mayus(fLarga.format(Number(b.fecha))))}</span><b>${col(b.monto)}</b></div>`).join('') : '<p class="nota">Todavía no hay abonos.</p>'}
-    ${prendas.length ? `<h2>Sus prendas (${prendas.length})</h2>
+    ${prendas.length ? `<h2>Sus prendas (${prendas.length})${nRet && d.estado === 'apartado' ? ` · se llevó ${nRet}` : ''}</h2>
     ${prendas.map(p => `<div class="prenda"><span class="foto">${p.foto ? `<img src="${esc(p.foto)}" alt="">` : PERCHA}</span>
-      <span><b>${esc(p.descripcion)}</b><br><span class="nota">${p.talla ? `Talla ${esc(p.talla)} · ` : ''}código ${esc(p.codigo)}</span></span></div>`).join('')}` : ''}
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">${p.talla ? `Talla ${esc(p.talla)} · ` : ''}código ${esc(p.codigo)}</span>
+        ${p.retirada ? `<br><span class="ya">Ya se la llevó${p.fechaRetiro ? ' el ' + esc(fCorta.format(Number(p.fechaRetiro))) : ''}</span>` : d.estado === 'apartado' ? '<br><span class="nota">Apartada</span>' : ''}</span></div>`).join('')}` : ''}
     ${tel ? `<a class="btn" href="https://wa.me/${tel}?text=${encodeURIComponent(texto)}" target="_blank" rel="noopener">${WA} Escribirle a la tienda</a>` : ''}`;
 }
 

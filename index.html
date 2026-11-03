@@ -58,7 +58,7 @@ b,strong{font-weight:700}
 .app{max-width:1080px;margin:0 auto;padding:0 16px calc(110px + env(safe-area-inset-bottom,0px))}
 .angosto{max-width:680px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 4px}
-.marca-tienda{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;min-width:0}
+.marca-tienda{appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:700;font-size:20px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;min-height:48px;padding:0 8px 0 0;border-radius:12px}
 .marca-tienda #nombreTienda{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .logo{width:38px;height:38px;border-radius:11px;background:var(--marca);color:var(--marca-tinta);display:grid;place-items:center;flex:none}
 .logo svg{width:22px;height:22px}
@@ -66,7 +66,7 @@ b,strong{font-weight:700}
 .ico{width:24px;height:24px;flex:none}
 
 /* navegación */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(7,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tab{position:relative;appearance:none;border:0;background:none;color:var(--tinta-suave);font:inherit;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:66px;padding:8px 2px;cursor:pointer}
 .tab .ico{width:26px;height:26px}
 @media (max-width:480px){.tab{font-size:12px;letter-spacing:-.2px}}
@@ -260,6 +260,10 @@ th{font-size:15px;color:var(--tinta-suave)}
 .fila-abono{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--superficie);border-radius:14px;padding:10px 14px;margin:8px 0}
 .fila-abono b{font-size:20px;font-variant-numeric:tabular-nums}
 .fila-abono .btn{min-height:44px;font-size:16px;padding:6px 12px}
+.fila-pedido{grid-template-columns:56px minmax(0,1fr) auto}
+.fp-botones{display:grid;gap:6px}
+.fp-botones .btn{min-height:44px;font-size:16px;padding:6px 12px}
+.fila-pedido .nota .ico{width:18px;height:18px;vertical-align:-4px}
 .caja-abono{background:var(--superficie);border-radius:14px;padding:4px 14px 14px;margin:10px 0}
 .venta-cliente{background:var(--superficie);border-radius:14px;padding:12px 14px;margin:10px 0}
 .venta-cliente .vc-cab{display:flex;justify-content:space-between;gap:10px;font-weight:700;margin-bottom:6px}
@@ -366,6 +370,10 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 /* ---------- encabezado ---------- */
 .cab-botones{display:flex;gap:2px;align-items:center}
 @media (max-width:400px){.btn-ajustes span{display:none}}
+/* Ojito: oculta ganancias y costos cuando hay clientes al frente */
+body.sin-ganancias .priv{filter:blur(9px);user-select:none;pointer-events:none}
+body.sin-ganancias .priv-todo{display:none!important}
+#btnOjito[aria-pressed="true"]{background:var(--marca-suave);color:var(--marca)}
 .btn-texto{appearance:none;border:0;background:none;color:var(--marca);font:inherit;font-weight:700;font-size:17px;min-height:44px;padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .girando.chica{width:16px;height:16px;border-width:2px;vertical-align:-3px;margin-right:6px}
 
@@ -525,8 +533,9 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
 <body>
 <div class="app">
   <header class="top">
-    <div class="marca-tienda"><span class="logo" id="logo"></span><span id="nombreTienda">Mi tienda</span></div>
+    <button type="button" class="marca-tienda" data-ir="hoy" aria-label="Ir al inicio"><span class="logo" id="logo"></span><span id="nombreTienda">Mi tienda</span></button>
     <div class="cab-botones">
+      <button class="btn-ajustes" type="button" data-accion="ojito" id="btnOjito"></button>
       <button class="btn-ajustes" type="button" data-accion="tema" id="btnTema"></button>
       <button class="btn-ajustes" type="button" data-accion="ajustes" id="btnAjustes" aria-label="Ajustes"></button>
     </div>
@@ -633,6 +642,8 @@ const ICON = {
   mas: svg('<path d="M12 5v14M5 12h14"/>'),
   compartir: svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'),
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
+  ojo: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  ojoNo: svg('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
   reloj: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   whatsapp: svg('<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-1.5-1-2-2l1-1-1-2z"/>'),
 };
@@ -678,7 +689,8 @@ let hojaCtx = null;
 let focoPrevio = null;
 let ultimoCodigoLocal = 0;
 const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, ofertas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 };
-let ofertaSel = null;   // prendas elegidas para ponerlas en oferta (Set de ids), o null si no se está eligiendo
+let ofertaSel = null;
+let modoPedido = false;   // Vender abierto desde «Pedido nuevo»: el botón principal hace el pedido, no la venta   // prendas elegidas para ponerlas en oferta (Set de ids), o null si no se está eligiendo
 let pestanaCompras = 'compras';
 const cola = { items: [], i: 0, compraId: null, guardadas: [], cargando: 0 };
 const periodo = { modo: 'semana', offset: 0 };
@@ -694,6 +706,20 @@ function ponerTema(t) {
   document.documentElement.setAttribute('data-theme', t === 'oscuro' ? 'dark' : 'light');
   try { localStorage.setItem('mitienda:tema', t); } catch (e) { /* opcional */ }
   pintarBotonTema();
+}
+// El ojito se recuerda en este aparato
+let sinGanancias = false;
+try { sinGanancias = localStorage.getItem('mitienda:sinGanancias') === '1'; } catch (e) { sinGanancias = false; }
+function ponerOjito(v) {
+  sinGanancias = v;
+  document.body.classList.toggle('sin-ganancias', v);
+  try { localStorage.setItem('mitienda:sinGanancias', v ? '1' : '0'); } catch (e) { /* opcional */ }
+  const b = $('#btnOjito');
+  if (b) {
+    b.innerHTML = `${v ? ICON.ojoNo : ICON.ojo}<span>${v ? 'Mostrar' : 'Ocultar'}</span>`;
+    b.setAttribute('aria-pressed', String(v));
+    b.setAttribute('aria-label', v ? 'Mostrar ganancias y costos' : 'Ocultar ganancias y costos');
+  }
 }
 function pintarBotonTema() {
   const b = $('#btnTema');
@@ -1146,7 +1172,6 @@ async function descargar(nombre, data) {
 
 /* ================= NAVEGACIÓN ================= */
 const TABS = [
-  { id: 'hoy', txt: 'Hoy', ico: 'casa' },
   { id: 'agregar', txt: 'Agregar', ico: 'camara' },
   { id: 'vender', txt: 'Vender', ico: 'etiqueta' },
   { id: 'prendas', txt: 'Prendas', ico: 'percha' },
@@ -1156,6 +1181,7 @@ const TABS = [
 ];
 function ir(v) {
   if (v !== 'prendas') ofertaSel = null;
+  if (v !== 'vender') modoPedido = false;
   vista = v;
   $$('.tab').forEach(t => t.setAttribute('aria-current', t.dataset.ir === v ? 'page' : 'false'));
   const el = $('#vista');
@@ -1202,7 +1228,7 @@ function htmlHoy() {
         <div class="fila"><span>Vendió hoy</span><strong>${col(suma(vHoy, p => p.precioVenta))}</strong></div>
         <p class="sub">${vHoy.length ? plural(vHoy.length, 'prenda vendida', 'prendas vendidas') : 'Todavía no hay ventas hoy'}</p>
         <hr>
-        <div class="fila"><span>Ganó hoy</span><strong class="${gHoy >= 0 ? 'verde' : 'rojo'}">${col(gHoy)}</strong></div>
+        <div class="fila"><span>Ganó hoy</span><strong class="priv ${gHoy >= 0 ? 'verde' : 'rojo'}">${col(gHoy)}</strong></div>
       </div>
       <div class="acciones">
         <button type="button" class="btn btn-marca btn-enorme" data-ir="agregar">${ICON.camara} Agregar prendas</button>
@@ -1219,7 +1245,7 @@ function htmlHoy() {
       ${htmlAvisoMejorTienda()}
       ${S.compras.length ? `<h2>Sus compras</h2>${S.compras.slice(0, 3).map(htmlCompraFila).join('')}
         ${S.compras.length > 3 ? `<button type="button" class="btn btn-sec" data-ir="compras">Ver todas las compras</button>` : ''}` : ''}
-      ${htmlMejores(vs)}
+      <div class="priv-todo">${htmlMejores(vs)}</div>
     </div></div>`;
 }
 function htmlAvisoCompraAbierta() {
@@ -1284,12 +1310,12 @@ function htmlPeriodoGanancia() {
     </div>
     <div class="periodo-totales">
       <div><span>Vendió</span><b>${col(suma(enRango, p => p.precioVenta))}</b></div>
-      <div><span>Ganó</span><b class="${g >= 0 ? 'verde' : 'rojo'}">${col(g)}</b></div>
+      <div><span>Ganó</span><b class="priv ${g >= 0 ? 'verde' : 'rojo'}">${col(g)}</b></div>
       <div><span>Prendas</span><b>${enRango.length}</b></div>
     </div>
     <div class="dias">${filas.map(f => `<div class="dia-fila ${f.futuro ? 'futuro' : ''}"><span>${esc(f.nombre)}</span>
       <span class="pista" aria-hidden="true"><span style="width:${f.g > 0 ? Math.max(3, f.g / max * 100) : 0}%"></span></span>
-      <b class="${f.g < 0 ? 'rojo' : ''}">${f.futuro ? '' : col(f.g)}</b></div>`).join('')}</div>
+      <b class="priv ${f.g < 0 ? 'rojo' : ''}">${f.futuro ? '' : col(f.g)}</b></div>`).join('')}</div>
     ${periodo.offset < 0 ? `<button type="button" class="btn btn-sec mt" data-accion="periodo-hoy">${sem ? 'Volver a esta semana' : 'Volver a este mes'}</button>` : ''}`;
 }
 function repintarPeriodo() { const el = $('#periodoGanancia'); if (el) el.innerHTML = htmlPeriodoGanancia(); }
@@ -1537,7 +1563,7 @@ function htmlAgregarInicio() {
     <div class="paso">
       <span class="etq-grande">¿De cuál compra son las prendas?</span>
       <div id="selCompraCola">${htmlSelectorCompra(sel)}</div>
-      <p class="nota mt" id="notaCompra">${esc(notaCompra())}</p>
+      <p class="nota mt priv" id="notaCompra">${esc(notaCompra())}</p>
     </div>
     <div class="inicio-fotos">
       <button type="button" class="btn btn-marca btn-gigante" data-accion="camara">${ICON.camara}<span>Tomar fotos</span></button>
@@ -1563,9 +1589,9 @@ function htmlCola() {
         <h2><span class="num" aria-hidden="true">1</span> ¿En cuánto la va a vender?</h2>
         ${htmlStepper('fPrecio', it.precio, 'Precio de venta en colones', 1000)}
         <div class="chips mt" role="group" aria-label="Precios rápidos" id="chipsPrecio">${PRECIOS_RAPIDOS.map(v => `<button type="button" class="chip" data-accion="precio-rapido" data-valor="${v}" aria-pressed="false">${col(v)}</button>`).join('')}</div>
-        ${c ? '' : `<div class="campo"><label for="fCostoItem">¿Cuánto le costó?</label><div class="dinero"><input id="fCostoItem" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${it.costoManual || ''}"></div></div>`}
+        ${c ? '' : `<div class="campo"><label for="fCostoItem">¿Cuánto le costó?</label><div class="dinero priv"><input id="fCostoItem" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${it.costoManual || ''}"></div></div>`}
         <p class="nota mt" id="notaPrecio"></p>
-        <p class="resultado" id="ganPrev" aria-live="polite"></p>
+        <p class="resultado priv" id="ganPrev" aria-live="polite"></p>
       </section>
       <section class="paso"><h2><span class="num" aria-hidden="true">2</span> Talla</h2><div id="tallaOpciones"></div></section>
       <section class="paso"><h2><span class="num" aria-hidden="true">3</span> ¿Qué es?</h2><div id="tipoOpciones"></div>
@@ -1763,7 +1789,7 @@ function htmlTag(p, paraVender) {
   const d = diasDesde(p.creada);
   let attrs = paraVender ? `data-accion="al-carrito" data-id="${esc(p.id)}"` : `data-prenda="${esc(p.id)}"`;
   let meta;
-  if (vendida) { const g = ganancia(p); meta = `<span class="meta ${g >= 0 ? 'verde' : 'rojo'}">${g >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(g))}</span>`; }
+  if (vendida) { const g = ganancia(p); meta = `<span class="meta priv ${g >= 0 ? 'verde' : 'rojo'}">${g >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(g))}</span>`; }
   else if (d >= 30) meta = `<span class="meta alerta">${d} días en la tienda</span>`;
   else meta = `<span class="meta">Código ${esc(p.codigo)}</span>`;
   const marcada = ofertaSel && ofertaSel.has(p.id);
@@ -1806,7 +1832,7 @@ function htmlFilaCarrito(x) {
       <div class="dinero"><input inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-carrito-precio="${esc(x.id)}" value="${x.precio || ''}" aria-label="Precio de venta de ${esc(x.p.descripcion)}"></div>
       <button type="button" class="btn btn-sec" data-accion="carrito-delta" data-id="${esc(x.id)}" data-valor="500" aria-label="Subir 500 colones">+</button>
     </div>
-    <p class="fc-gan ${g >= 0 ? 'verde' : 'rojo'}" data-gan="${esc(x.id)}">${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}</p>
+    <p class="fc-gan priv-todo ${g >= 0 ? 'verde' : 'rojo'}" data-gan="${esc(x.id)}">${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}</p>
   </div>`;
 }
 let firmaCarrito = '';
@@ -1818,17 +1844,35 @@ function pintarCarrito(forzar) {
   if (!forzar && firma === firmaCarrito && items.length) { pintarTotalesCarrito(); return; }
   firmaCarrito = firma;
   if (!items.length) {
-    cont.innerHTML = `<div class="vacio mt"><p><b>Venta nueva</b></p><p>Escanee o busque las prendas que se lleva la clienta. Se van sumando aquí y al final guarda la venta.</p></div>`;
+    cont.innerHTML = modoPedido
+      ? `<div class="vacio mt"><p><b>Pedido nuevo</b></p><p>Escanee o busque las prendas que la clienta quiere apartar. Se van sumando aquí y al final hace el pedido.</p></div>`
+      : `<div class="vacio mt"><p><b>Venta nueva</b></p><p>Escanee o busque las prendas que se lleva la clienta. Se van sumando aquí y al final guarda la venta.</p></div>`;
+    return;
+  }
+  const cli = clientePorTel(clienteVenta);
+  if (modoPedido) {
+    cont.innerHTML = `<h2>Prendas del pedido (${items.length})</h2>
+      ${items.map(htmlFilaCarrito).join('')}
+      <div class="ticket total-venta" role="group" aria-label="Total del pedido">
+        <div class="fila"><span>Suman</span><strong id="totalCobrar"></strong></div>
+        <p class="sub">El precio del pedido y el primer abono los pone en el siguiente paso.</p>
+      </div>
+      <div class="campo mt">${htmlSelector('Clienta del pedido', cli ? cli.nombre : 'Toque para elegir la clienta', cli ? 'Tel. ' + telBonito(cli.telefono) : '', 'elegir-cliente')}</div>
+      <div class="carrito-botones">
+        <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
+        <button type="button" class="btn btn-marca btn-enorme" data-accion="apartar">${ICON.reloj} Hacer el pedido</button>
+      </div>`;
+    pintarTotalesCarrito();
     return;
   }
   cont.innerHTML = `<h2>Venta actual (${plural(items.length, 'prenda', 'prendas')})</h2>
     ${items.map(htmlFilaCarrito).join('')}
     <div class="ticket total-venta" role="group" aria-label="Total de la venta">
       <div class="fila"><span>Total a cobrar</span><strong id="totalCobrar"></strong></div>
-      <hr>
-      <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div>
+      <div class="priv-todo"><hr>
+      <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div></div>
     </div>
-    <div class="campo mt">${(() => { const x = clientePorTel(clienteVenta); return htmlSelector('Cliente', x ? x.nombre : 'Sin cliente (toque para elegir)', x ? 'Tel. ' + telBonito(x.telefono) : '', 'elegir-cliente'); })()}</div>
+    <div class="campo mt">${htmlSelector('Cliente', cli ? cli.nombre : 'Sin cliente (toque para elegir)', cli ? 'Tel. ' + telBonito(cli.telefono) : '', 'elegir-cliente')}</div>
     <div class="carrito-botones">
       <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-venta">Guardar venta</button>
@@ -1840,7 +1884,7 @@ function pintarTotalesCarrito() {
   const items = itemsCarrito();
   for (const x of items) {
     const el = $(`[data-gan="${CSS.escape(x.id)}"]`);
-    if (el) { const g = x.precio - costoDe(x.p); el.className = `fc-gan ${g >= 0 ? 'verde' : 'rojo'}`; el.textContent = `${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}`; }
+    if (el) { const g = x.precio - costoDe(x.p); el.className = `fc-gan priv-todo ${g >= 0 ? 'verde' : 'rojo'}`; el.textContent = `${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}`; }
   }
   const total = suma(items, x => x.precio), gan = suma(items, x => x.precio - costoDe(x.p));
   const t = $('#totalCobrar'); if (t) t.textContent = col(total);
@@ -1865,7 +1909,7 @@ async function guardarVenta(btn) {
   clienteVenta = ''; guardarCarritoLocal();
   pintarCarrito(true);
   renderResultadosVenta();
-  toast(`Venta guardada${cli ? ` para ${cli.nombre}` : ''}: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}. ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`, gan >= 0 ? 'bien' : '');
+  toast(`Venta guardada${cli ? ` para ${cli.nombre}` : ''}: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}.${sinGanancias ? '' : ` ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`}`, gan >= 0 ? 'bien' : '');
 }
 function renderResultadosVenta() {
   const cont = $('#resVenta');
@@ -1882,7 +1926,7 @@ function renderResultadosVenta() {
   if (vh) {
     const vs = vendidas().filter(p => p.fechaVenta >= inicioDia(Date.now())).sort((a, b) => b.fechaVenta - a.fechaVenta);
     vh.innerHTML = vs.length ? vs.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
-      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Vendida en ${col(p.precioVenta)}, ${ganancia(p) >= 0 ? 'ganó' : 'perdió'} <span class="${ganancia(p) >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(ganancia(p)))}</span></span></span>
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Vendida en ${col(p.precioVenta)}<span class="priv-todo">, ${ganancia(p) >= 0 ? 'ganó' : 'perdió'} <span class="${ganancia(p) >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(ganancia(p)))}</span></span></span></span>
       <button type="button" class="btn btn-sec" data-accion="deshacer-venta" data-id="${esc(p.id)}">Deshacer</button></div>`).join('')
       : `<p class="nota">Todavía no ha vendido nada hoy.</p>`;
   }
@@ -1900,6 +1944,14 @@ function ventaPorCodigo(v) {
   else if (!res.length) toast('No encontramos esa prenda. Revise el código.', 'mal');
 }
 async function deshacerVenta(id) {
+  const p = buscar(id), a = p && apartadoPorId(p.apartadoId);
+  // Si se la llevó de un pedido, vuelve a quedar apartada en ese pedido
+  if (a && a.estado !== 'cancelado') {
+    const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'apartada', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null }));
+    if (ok && a.estado === 'entregado') await escribir(() => backend.ponerApartado({ ...a, estado: 'apartado', entregado: null }));
+    if (ok) { cerrarHoja(); toast(`Listo: la prenda volvió a estar apartada en el pedido #${a.numero}.`); }
+    return;
+  }
   const ok = await escribir(() => backend.actualizarPrenda(id, { estado: 'disponible', precioVenta: null, fechaVenta: null, ventaId: null, clienteTel: null, apartadoId: null }));
   if (ok) { cerrarHoja(); toast('Venta deshecha. La prenda volvió a la tienda.'); }
 }
@@ -1944,7 +1996,7 @@ function pintarEscaner(msg, estado) {
   const m = $('#escMarco');
   m.classList.remove('ok', 'mal');
   if (estado) { m.classList.add(estado); setTimeout(() => m.classList.remove(estado), 900); }
-  $('#escCuenta').textContent = ESCN.modo === 'pedido' ? '' : `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en esta venta`;
+  $('#escCuenta').textContent = ESCN.modo === 'pedido' ? '' : `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en ${modoPedido ? 'este pedido' : 'esta venta'}`;
 }
 function pitar(ok) {
   try { if (navigator.vibrate) navigator.vibrate(ok ? 70 : [60, 60, 60]); } catch (e) { /* opcional */ }
@@ -1990,7 +2042,7 @@ function manejarCodigo(texto) {
 async function abrirEscaner(modo = 'venta') {
   ESCN.cuenta = 0; ESCN.ultimo = ''; ESCN.modo = modo;
   $('#escTitulo').textContent = modo === 'pedido' ? 'Escanear pedido' : 'Escanear prendas';
-  $('#escListo').textContent = modo === 'pedido' ? 'Cerrar' : 'Listo, ver la venta';
+  $('#escListo').textContent = modo === 'pedido' ? 'Cerrar' : modoPedido ? 'Listo, ver el pedido' : 'Listo, ver la venta';
   const ov = $('#escaner');
   ov.hidden = false;
   document.body.classList.add('con-hoja');
@@ -2260,7 +2312,7 @@ function pintarDescuento() {
   const ps = ctx.ids.map(buscar).filter(Boolean);
   const antes = suma(ps, p => p.precio), despues = suma(ps, p => precioOferta(p.precio, d));
   cont.innerHTML = `<div class="ticket"><div class="fila"><span>Con ${d} % de descuento</span><strong>${col(despues)}</strong></div>
-      <p class="nota">Antes ${col(antes)}${ps.length > 1 ? ' entre todas' : ''}. Ganaría ${col(despues - suma(ps, costoDe))}.</p></div>
+      <p class="nota">Antes ${col(antes)}${ps.length > 1 ? ' entre todas' : ''}.<span class="priv-todo"> Ganaría ${col(despues - suma(ps, costoDe))}.</span></p></div>
     <ul class="lista-oferta">${ps.slice(0, 8).map(p => `<li><span>${esc(p.descripcion)}</span><span><s class="antes">${col(p.precio)}</s> <b class="oferta">${col(precioOferta(p.precio, d))}</b></span></li>`).join('')}</ul>
     ${ps.length > 8 ? `<p class="nota">y ${ps.length - 8} más</p>` : ''}`;
 }
@@ -2288,7 +2340,7 @@ function htmlProgreso(c, st) {
   const pct = c.costo > 0 ? Math.min(100, Math.round(st.recuperado / c.costo * 100)) : 100;
   const ok = st.balance >= 0;
   return `<span class="prog ${ok ? '' : 'falta'}" role="progressbar" aria-label="Recuperado de lo que pagó" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
-    <span>${ok ? `Ya recuperó lo que pagó y va ganando <b class="verde">${col(st.balance)}</b>.` : `Ha recuperado ${col(st.recuperado)}. Le faltan <b>${col(-st.balance)}</b> para recuperar lo que pagó.`}</span>`;
+    <span class="priv">${ok ? `Ya recuperó lo que pagó y va ganando <b class="verde">${col(st.balance)}</b>.` : `Ha recuperado ${col(st.recuperado)}. Le faltan <b>${col(-st.balance)}</b> para recuperar lo que pagó.`}</span>`;
 }
 function textoCantidad(c, st) {
   return c.cantidad > 0
@@ -2314,7 +2366,7 @@ function htmlResumenCompras() {
     <div class="fila"><span>Ha invertido</span><strong class="med">${col(invertido)}</strong></div>
     <div class="fila"><span>Ha vendido</span><strong class="med">${col(vendido)}</strong></div>
     <hr>
-    <div class="fila"><span>${bal >= 0 ? 'Va ganando' : 'Le falta recuperar'}</span><strong class="${bal >= 0 ? 'verde' : ''}">${col(Math.abs(bal))}</strong></div>
+    <div class="fila"><span>${bal >= 0 ? 'Va ganando' : 'Le falta recuperar'}</span><strong class="priv ${bal >= 0 ? 'verde' : ''}">${col(Math.abs(bal))}</strong></div>
     <p class="sub">Tiene ${plural(disp.length, 'prenda', 'prendas')} en la tienda que valen ${col(suma(disp, p => p.precio))} a precio de etiqueta.</p>
   </div>`;
 }
@@ -2400,8 +2452,8 @@ function abrirCompra(id) {
   abrirHoja(`<h2>${esc(c.nombre)}</h2>
     <p class="nota">Comprada el ${fLarga.format(c.fecha)}${tiendaDeCompra(c) ? ` en ${esc(tiendaDeCompra(c).nombre)}` : ''}.${c.nota ? ' ' + esc(c.nota) : ''}</p>
     <dl class="cifras">
-      <div><dt>Pagó</dt><dd>${col(c.costo)}</dd></div>
-      <div><dt>Cada prenda${c.cantidad > 0 ? '' : ' (por ahora)'}</dt><dd>${col(costoUnidad(c))}</dd></div>
+      <div><dt>Pagó</dt><dd class="priv">${col(c.costo)}</dd></div>
+      <div><dt>Cada prenda${c.cantidad > 0 ? '' : ' (por ahora)'}</dt><dd class="priv">${col(costoUnidad(c))}</dd></div>
       <div><dt>Ha vendido</dt><dd>${col(st.recuperado)}</dd></div>
     </dl>
     <div class="compra-prog">${htmlProgreso(c, st)}</div>
@@ -2444,7 +2496,7 @@ function htmlTiendaFila({ t, st }, mejor) {
     ${t.zona ? `<span class="nota">${esc(t.zona)}</span>` : ''}
     ${st.vendidasFinal ? `<span class="rinde"><span>Por cada ₡1.000 que le cuesta una prenda, la vende en</span><b class="${st.por1000 < 1000 ? 'rojo' : ''}">${col(st.por1000)}</b></span>`
       : `<span class="nota mt">${st.vendidas ? 'Cierre sus compras para ver cuánto le deja esta tienda.' : 'Todavía no ha vendido prendas de esta tienda.'}</span>`}
-    <span class="mini-cifras"><span><small>Invirtió</small><b>${col(st.invertido)}</b></span><span><small>Vendió</small><b>${col(st.vendido)}</b></span><span><small>Ganó</small><b class="${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</b></span></span>
+    <span class="mini-cifras"><span><small>Invirtió</small><b class="priv">${col(st.invertido)}</b></span><span><small>Vendió</small><b>${col(st.vendido)}</b></span><span><small>Ganó</small><b class="priv ${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</b></span></span>
     ${st.invertido ? `<span class="prog ${pct >= 100 ? '' : 'falta'}" role="progressbar" aria-label="Recuperado de lo invertido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
       <span class="nota">Ha recuperado el ${pct} % de lo que invirtió aquí.</span>` : ''}
     <span class="nota">${plural(st.compras.length, 'compra', 'compras')}. ${st.vendidas} de ${st.registradas} prendas vendidas${st.vendidasFinal ? `; tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse` : ''}.</span>
@@ -2460,8 +2512,8 @@ function abrirTienda(id) {
     <dl class="cifras">
       <div><dt>Invirtió</dt><dd>${col(st.invertido)}</dd></div>
       <div><dt>Vendió</dt><dd>${col(st.vendido)}</dd></div>
-      <div><dt>Ganó</dt><dd class="${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</dd></div>
-      ${st.vendidasFinal ? `<div><dt>Gana por prenda</dt><dd>${col(st.ganPorPrenda)}</dd></div>` : ''}
+      <div><dt>Ganó</dt><dd class="priv ${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</dd></div>
+      ${st.vendidasFinal ? `<div><dt>Gana por prenda</dt><dd class="priv">${col(st.ganPorPrenda)}</dd></div>` : ''}
     </dl>
     ${st.abiertas ? `<p class="nota">${plural(st.abiertas, 'compra está abierta', 'compras están abiertas')}: sus prendas no cuentan en la ganancia hasta que la cierre.</p>` : ''}
     ${st.vendidasFinal ? `<p>Por cada ₡1.000 que le cuesta una prenda de esta tienda, la vende en <b>${col(st.por1000)}</b>. Tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse, en promedio.</p>` : '<p class="nota">Cuando venda prendas de esta tienda, aquí verá cuánto le dejan.</p>'}
@@ -2651,17 +2703,35 @@ const claveNueva = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), 
 const hayEnlacePedido = () => S.modo === 'supabase';
 const urlPedido = a => new URL('pedido.html?c=' + a.clave, location.href).href;
 function statsApartado(a) {
-  const abonos = abonosDe(a.id);
+  const abonos = abonosDe(a.id), ps = prendasDeApartado(a.id);
   const pagado = suma(abonos, b => b.monto), precio = Number(a.precio) || 0;
   const pct = precio > 0 ? Math.min(100, Math.floor(pagado / precio * 100)) : 100;
-  return { abonos, pagado, falta: Math.max(0, precio - pagado), pct, puedeEntregar: pct >= pctParaEntregar(), ultimo: abonos[abonos.length - 1] || null };
+  return { abonos, pagado, falta: Math.max(0, precio - pagado), pct, puedeEntregar: pct >= pctParaEntregar(), ultimo: abonos[abonos.length - 1] || null,
+    prendas: ps, retiradas: ps.filter(p => p.estado === 'vendida'), porRetirar: ps.filter(p => p.estado === 'apartada') };
+}
+// Lo que le toca a cada prenda del precio del pedido, repartido según su precio de etiqueta
+function partesPedido(a) {
+  const ps = prendasDeApartado(a.id);
+  const pesos = ps.map(p => Number(p.precio) || 0), base = suma(pesos, x => x), total = Number(a.precio) || 0;
+  const m = new Map();
+  let resto = total;
+  ps.forEach((p, i) => { const v = i === ps.length - 1 ? resto : Math.floor(total * (base ? pesos[i] / base : 1 / ps.length)); resto -= v; m.set(p.id, v); });
+  return m;
+}
+// Para llevarse una prenda suelta, lo pagado tiene que cubrir el porcentaje de Ajustes
+// de lo que valen las prendas que ya se llevó más esta.
+function paraRetirar(a, st, p, partes) {
+  const valor = suma(st.retiradas, x => partes.get(x.id)) + (partes.get(p.id) || 0);
+  const necesita = Math.ceil(valor * pctParaEntregar() / 100);
+  return { necesita, alcanza: st.pagado >= necesita };
 }
 const apartadoActivo = (a, st) => a.estado === 'apartado' || (a.estado === 'entregado' && st.falta > 0);
 function textoEstadoApartado(a, st) {
   if (a.estado === 'cancelado') return 'Cancelado';
   if (a.estado === 'entregado') return st.falta > 0 ? `Entregado, todavía debe ${col(st.falta)}` : 'Entregado y pagado';
-  if (!st.falta) return 'Pagado completo: ya puede entregarlo';
-  return st.puedeEntregar ? `Ya pagó el ${st.pct} %: puede entregarlo` : `Lleva el ${st.pct} % (se entrega con el ${pctParaEntregar()} %)`;
+  const ya = st.retiradas.length ? `Se llevó ${st.retiradas.length} de ${st.prendas.length} prendas. ` : '';
+  if (!st.falta) return ya + 'Pagado completo: ya puede entregarlo';
+  return ya + (st.puedeEntregar ? `Ya pagó el ${st.pct} %: puede entregarlo` : `Lleva el ${st.pct} % (se entrega con el ${pctParaEntregar()} %)`);
 }
 // " para María (pedido #12)"
 function textoDeApartado(p) {
@@ -2678,11 +2748,11 @@ function htmlBarraApartado(st) {
   return `<span class="prog ${st.puedeEntregar ? '' : 'falta'}" role="progressbar" aria-label="Pagado del pedido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><span style="width:${st.pct}%"></span></span>`;
 }
 function htmlFilaApartado(a) {
-  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = prendasDeApartado(a.id).length;
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = st.prendas.length;
   return `<button type="button" class="fila-cliente fila-apartado" data-accion="ver-apartado" data-id="${esc(a.id)}">
     <b>#${a.numero} · ${esc(cli ? cli.nombre : 'Sin cliente')}</b><span class="fc-total">${st.pct} %</span>
     ${htmlBarraApartado(st)}
-    <span class="nota">Pagó ${col(st.pagado)} de ${col(a.precio)} · ${plural(n, 'prenda', 'prendas')}${st.ultimo ? ` · último abono ${hace(st.ultimo.fecha)}` : ''}</span>
+    <span class="nota">Pagó ${col(st.pagado)} de ${col(a.precio)} · ${st.retiradas.length && a.estado === 'apartado' ? `se llevó ${st.retiradas.length} de ${n} prendas` : plural(n, 'prenda', 'prendas')}${st.ultimo ? ` · último abono ${hace(st.ultimo.fecha)}` : ''}</span>
     <span class="nota ${a.estado === 'apartado' && st.puedeEntregar ? 'verde' : ''}"><b>${esc(textoEstadoApartado(a, st))}</b></span>
   </button>`;
 }
@@ -2700,7 +2770,7 @@ function abrirApartar() {
     <div class="campo"><label for="apAbono">Lo que le dio hoy (primer abono)</label>${htmlStepper('apAbono', 0, '', 500)}<p class="nota mt">Déjelo vacío si todavía no le ha dado nada.</p></div>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-apartado">${ICON.reloj} Guardar pedido</button>
-      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Volver a la venta</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>${modoPedido ? 'Volver' : 'Volver a la venta'}</button>
     </div>`, null, 'Pedido nuevo');
 }
 async function guardarApartado(btn) {
@@ -2720,7 +2790,8 @@ async function guardarApartado(btn) {
   }
   if (abono > 0) await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto: abono, fecha: t, nota: '' }));
   clienteVenta = ''; guardarCarritoLocal();
-  pintarCarrito(true);
+  modoPedido = false;
+  ir('apartados');
   toast(`Pedido #${a.numero} guardado para ${cli.nombre}.`, 'bien');
   abrirApartado(a.id);
 }
@@ -2737,9 +2808,19 @@ function textoEstadoCuenta(a, st) {
 function abrirApartado(id) {
   const a = apartadoPorId(id);
   if (!a) { toast('No se encontró ese pedido.', 'mal'); return; }
-  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = st.prendas, partes = partesPedido(a);
   const abierto = a.estado === 'apartado', cobrando = a.estado !== 'cancelado' && st.falta > 0;
-  const btnEntregar = abierto ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} Entregar las prendas</button>` : '';
+  const btnEntregar = abierto && st.porRetirar.length ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} ${st.retiradas.length ? `Entregar las que faltan (${st.porRetirar.length})` : 'Entregar todas las prendas'}</button>` : '';
+  const filaPrenda = p => {
+    const r = p.estado === 'apartada' ? paraRetirar(a, st, p, partes) : null;
+    return `<div class="fila-vendida fila-pedido">${htmlFotoMini(p)}
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · le toca ${col(partes.get(p.id))} del pedido</span>
+        ${p.estado === 'vendida' ? `<br><span class="nota verde"><b>${ICON.check} Se la llevó el ${esc(fCorta.format(p.fechaVenta))}</b></span>`
+          : r && abierto ? `<br><span class="nota ${r.alcanza ? 'verde' : ''}"><b>${r.alcanza ? 'Ya puede llevársela' : `Para llevársela: tener pagado ${col(r.necesita)}`}</b></span>` : ''}</span>
+      ${r && abierto ? `<span class="fp-botones"><button type="button" class="btn ${r.alcanza ? 'btn-marca' : 'btn-sec'}" data-accion="retirar-prenda" data-id="${esc(p.id)}" aria-label="Entregarle ${esc(p.descripcion)}">Entregar</button>
+        <button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button></span>` : '<span></span>'}
+    </div>`;
+  };
   const ctx = abrirHoja(`<p class="codigo">Pedido ${esc(codigoPedido(a))}</p>
     <h2 class="sin-margen">Pedido #${a.numero}${cli ? ' de ' + esc(cli.nombre) : ''}</h2>
     <p class="nota">${cli ? `Tel. ${esc(telBonito(cli.telefono))} · ` : ''}hecho el ${esc(fLarga.format(a.creado))}${a.entregado ? ` · entregado el ${esc(fLarga.format(a.entregado))}` : ''}</p>
@@ -2756,11 +2837,9 @@ function abrirApartado(id) {
         <span><b>${col(b.monto)}</b><br><span class="nota">${esc(mayus(fLarga.format(b.fecha)))}</span></span>
         ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec" data-accion="quitar-abono" data-id="${esc(b.id)}" aria-label="Borrar abono de ${col(b.monto)}">Borrar</button>` : ''}
       </div>`).join('') : '<p class="nota">Todavía no ha dado ningún abono.</p>'}
-    <h3 class="grupo-sel">Prendas (${ps.length})</h3>
-    ${ps.length ? ps.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
-        <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · etiqueta ${col(p.precio)}</span></span>
-        ${abierto ? `<button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button>` : '<span></span>'}
-      </div>`).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
+    <h3 class="grupo-sel">Prendas (${ps.length})${st.retiradas.length && abierto ? ` · se llevó ${st.retiradas.length}` : ''}</h3>
+    ${abierto && st.porRetirar.length > 1 ? `<p class="nota">Si la clienta quiere llevarse una prenda ya, toque <b>Entregar</b> en esa prenda. Las demás siguen apartadas y el pedido sigue igual.</p>` : ''}
+    ${ps.length ? [...st.porRetirar, ...st.retiradas].map(filaPrenda).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
     <div class="botones-hoja">
       ${st.puedeEntregar ? btnEntregar : ''}
       ${cli && a.estado !== 'cancelado' ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(cli.telefono)}?text=${encodeURIComponent(textoEstadoCuenta(a, st))}" target="_blank" rel="noopener">${ICON.whatsapp} Enviarle cuánto lleva por WhatsApp</a>` : ''}
@@ -2823,41 +2902,55 @@ async function guardarPrecioApartado(id, btn) {
   if (precio < pagado) { toast(`Ya le pagó ${col(pagado)}: el precio no puede ser menos.`, 'mal'); return; }
   btn.disabled = true;
   if (await escribir(() => backend.ponerApartado({ ...a, precio }))) {
-    // si ya se entregó, las prendas vendidas toman el precio nuevo
-    if (a.estado === 'entregado') await repartirVenta({ ...a, precio }, prendasDeApartado(a.id), {});
+    // las prendas que ya se llevó toman su parte del precio nuevo
+    const ya = prendasDeApartado(a.id).filter(p => p.estado === 'vendida');
+    if (ya.length) await venderPrendasPedido({ ...a, precio }, ya, {});
     toast('Precio guardado.', 'bien'); abrirApartado(a.id);
   } else btn.disabled = false;
 }
-// Reparte el precio del apartado entre sus prendas, según el precio de etiqueta de cada una
-async function repartirVenta(a, ps, extra) {
-  const pesos = ps.map(p => Number(p.precio) || 0), base = suma(pesos, x => x);
-  let resto = Number(a.precio) || 0;
-  for (let i = 0; i < ps.length; i++) {
-    const v = i === ps.length - 1 ? resto : Math.floor(a.precio * (base ? pesos[i] / base : 1 / ps.length));
-    resto -= v;
-    if (!(await escribir(() => backend.actualizarPrenda(ps[i].id, { ...extra, precioVenta: v })))) return false;
-  }
+// Las prendas pasan a vendidas, cada una por su parte del precio del pedido
+async function venderPrendasPedido(a, ps, extra) {
+  const partes = partesPedido(a);
+  for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { ...extra, precioVenta: partes.get(p.id) || 0 })))) return false;
   return true;
+}
+// Una sola prenda: la clienta se la lleva y las demás siguen apartadas
+function retirarPrenda(id) {
+  const p = buscar(id), a = p && apartadoPorId(p.apartadoId);
+  if (!a || p.estado !== 'apartada' || a.estado !== 'apartado') return;
+  const st = statsApartado(a), partes = partesPedido(a), r = paraRetirar(a, st, p, partes);
+  const quedan = st.porRetirar.length - 1;
+  confirmar(`¿Entregarle ${esc(p.descripcion)}?`,
+    `${r.alcanza ? `Ya pagó ${col(st.pagado)}: le alcanza para llevársela.` : `<b>Ojo:</b> para llevársela debería tener pagado ${col(r.necesita)}, y lleva ${col(st.pagado)}.`}
+     La prenda pasa a vendida en ${col(partes.get(p.id))}. ${quedan ? `${quedan === 1 ? 'La otra prenda sigue apartada' : `Las otras ${quedan} prendas siguen apartadas`} y el pedido sigue igual: le faltan ${col(st.falta)}.` : 'Era la última prenda: el pedido queda entregado.'}`,
+    r.alcanza ? 'Sí, entregarla' : 'Entregarla igual', async () => {
+      const t = Date.now();
+      if (!(await venderPrendasPedido(a, [p], { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null }))) return;
+      if (!quedan && !(await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t })))) return;
+      toast(quedan ? `Listo: se llevó ${p.descripcion}. Le faltan ${col(st.falta)} del pedido.` : `Pedido #${a.numero} entregado.`, 'bien');
+      abrirApartado(a.id);
+    });
 }
 function entregarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
-  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), ps = st.porRetirar;
   if (!ps.length) { toast('Este pedido no tiene prendas para entregar.', 'mal'); return; }
-  confirmar(`¿Entregarle las prendas del pedido #${a.numero}?`,
-    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}Las ${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(a.precio)} en total.`,
+  const partes = partesPedido(a);
+  confirmar(`¿Entregarle ${st.retiradas.length ? 'las prendas que faltan' : 'las prendas'} del pedido #${a.numero}?`,
+    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(suma(ps, p => partes.get(p.id)))}${st.retiradas.length ? ' (lo que les toca del pedido)' : ' en total'}.`,
     'Sí, entregar', async () => {
       const t = Date.now();
-      const ok = await repartirVenta(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
+      const ok = await venderPrendasPedido(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
       if (ok && await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t }))) { toast(`Pedido #${a.numero} entregado.`, 'bien'); abrirApartado(a.id); }
     });
 }
 function cancelarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
-  const st = statsApartado(a), ps = prendasDeApartado(a.id);
+  const st = statsApartado(a), ps = st.porRetirar;
   confirmar(`¿Cancelar el pedido #${a.numero}?`,
-    `Las ${plural(ps.length, 'prenda vuelve', 'prendas vuelven')} a la tienda.${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
+    `${ps.length ? `${ps.length === 1 ? 'La prenda que no se ha llevado vuelve' : `Las ${ps.length} prendas que no se ha llevado vuelven`} a la tienda.` : ''}${st.retiradas.length ? ` ${plural(st.retiradas.length, 'prenda que ya se llevó queda', 'prendas que ya se llevó quedan')} como vendidas.` : ''}${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
     'Sí, cancelar pedido', async () => {
       for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { estado: 'disponible', apartadoId: null })))) return;
       if (await escribir(() => backend.ponerApartado({ ...a, estado: 'cancelado' }))) { toast(`Pedido #${a.numero} cancelado. Las prendas volvieron a la tienda.`); abrirApartado(a.id); }
@@ -2896,7 +2989,7 @@ function pintarVistaApartados() {
     b.setAttribute('aria-pressed', String(b.dataset.valor === filtroApartados.ver));
   });
   if (!todos.length) {
-    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno: en <b>Vender</b> escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».</p></div>`;
+    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno, toque <b>Pedido nuevo</b>, pase las prendas, elija la clienta y toque «Hacer el pedido».</p></div>`;
     return;
   }
   const lista = (filtroApartados.ver === 'activos' ? activos : todos.filter(x => !apartadoActivo(x.a, x.st)))
@@ -2994,7 +3087,7 @@ function abrirPrenda(id) {
     const d = diasDesde(p.creada);
     if (d >= 30) {
       const sug = Math.max(bajar900(p.precio * 0.8), a900(costo * 1.2));
-      if (sug < p.precio) consejo = `<div class="aviso"><p>Lleva ${d} días en la tienda. Si la rebaja a <b>${col(sug)}</b>, todavía gana <b>${col(sug - costo)}</b>.</p></div>`;
+      if (sug < p.precio) consejo = `<div class="aviso priv-todo"><p>Lleva ${d} días en la tienda. Si la rebaja a <b>${col(sug)}</b>, todavía gana <b>${col(sug - costo)}</b>.</p></div>`;
     }
   }
   abrirHoja(`${p.foto ? `<img class="detalle-foto" src="${p.foto}" alt="Foto de ${esc(p.descripcion)}">` : ''}
@@ -3002,9 +3095,9 @@ function abrirPrenda(id) {
     <h2 class="sin-margen">${esc(p.descripcion)}</h2>
     <p>${esc(detalleLinea(p))}</p>
     <dl class="cifras">
-      <div><dt>Le costó</dt><dd>${col(costo)}</dd></div>
+      <div><dt>Le costó</dt><dd class="priv">${col(costo)}</dd></div>
       <div><dt>${vendida ? 'La vendió en' : enOferta(p) ? `En oferta (−${p.descuento} %)` : 'Precio de etiqueta'}</dt><dd>${vendida ? col(p.precioVenta) : htmlPrecioOferta(p)}</dd></div>
-      <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
+      <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="priv ${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
     ${apartado ? `<div class="aviso aviso-marca"><p>Está <b>apartada${esc(textoDeApartado(p))}</b>. No sale en el inventario ni en el catálogo.</p>
       <button type="button" class="btn btn-marca" data-accion="ver-apartado" data-id="${esc(apartado.id)}">${ICON.reloj} Ver el pedido</button></div>` : ''}
@@ -3036,7 +3129,7 @@ function abrirEditar(id) {
       <div class="campo"><label for="eGenero">Para</label><select id="eGenero">${GENEROS.map(g => `<option ${g === generoDe(p) ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
     </div>
     <div class="campo"><label for="eCompra">Compra</label><select id="eCompra">${opcionesCompra(p.compraId)}</select></div>
-    <div class="campo"><label for="eCosto">Le costó esta prenda</label>${htmlStepper('eCosto', costoDe(p), '', 500)}
+    <div class="campo priv"><label for="eCosto">Le costó esta prenda</label>${htmlStepper('eCosto', costoDe(p), '', 500)}
       <p class="nota mt">${p.costoFijo || !c ? 'Este costo lo escribió usted.' : `Ahora sale de repartir lo que costó la compra «${esc(c.nombre)}». Si lo cambia, queda fijo para esta prenda.`}</p>
       ${p.costoFijo && c ? `<label class="nota mt"><input type="checkbox" id="eCostoCompra"> Volver a usar el costo repartido de la compra (${col(costoUnidad(c))})</label>` : ''}</div>
     <div class="campo"><label for="ePrecio">Precio de etiqueta</label>${htmlStepper('ePrecio', p.precio, '', 1000)}</div>
@@ -3500,7 +3593,9 @@ const VISTAS = {
   },
   vender: {
     mount(el) {
-      el.innerHTML = `<h1>Vender</h1>
+      el.innerHTML = `<h1>${modoPedido ? 'Pedido nuevo' : 'Vender'}</h1>
+        ${modoPedido ? `<div class="aviso aviso-marca"><p><b>Está haciendo un pedido.</b> Pase las prendas que la clienta aparta, elija la clienta y toque «Hacer el pedido».</p>
+          <button type="button" class="btn btn-sec" data-accion="modo-venta">No, es una venta normal</button></div>` : ''}
         <div class="vender-grid"><div>
           <div class="escanear-zona">
             <button type="button" class="btn btn-marca btn-gigante" data-accion="escanear">${ICON.escaner}<span>Escanear prendas con la cámara</span></button>
@@ -3655,6 +3750,7 @@ document.addEventListener('click', async e => {
   const it = itemActual();
   switch (el.dataset.accion) {
     case 'ajustes': abrirAjustes(); break;
+    case 'ojito': ponerOjito(!sinGanancias); toast(sinGanancias ? 'Ganancias y costos ocultos. Toque el ojito para verlos.' : 'Ganancias y costos a la vista.'); break;
     case 'tema':
       ponerTema(valor || (temaActual() === 'oscuro' ? 'claro' : 'oscuro'));
       $$('[data-accion="tema"][data-valor]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valor === temaActual())));
@@ -3751,7 +3847,8 @@ document.addEventListener('click', async e => {
     // apartados
     case 'apartar': abrirApartar(); break;
     case 'guardar-apartado': guardarApartado(el); break;
-    case 'apartado-nuevo': ir('vender'); toast('Escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».'); break;
+    case 'apartado-nuevo': modoPedido = true; ir('vender'); break;
+    case 'modo-venta': modoPedido = false; ir('vender'); break;
     case 'escanear-pedido': abrirEscaner('pedido'); break;
     case 'ver-apartados': filtroApartados.ver = valor; pintarVistaApartados(); break;
     case 'ver-apartado': abrirApartado(id); break;
@@ -3775,6 +3872,7 @@ document.addEventListener('click', async e => {
     case 'editar-apartado': abrirEditarApartado(id); break;
     case 'guardar-precio-apartado': guardarPrecioApartado(id, el); break;
     case 'entregar-apartado': entregarApartado(id); break;
+    case 'retirar-prenda': retirarPrenda(id); break;
     case 'cancelar-apartado': cancelarApartado(id); break;
     case 'copiar-enlace-pedido': copiarEnlacePedido(id); break;
     case 'etiqueta-pedido': { const a = apartadoPorId(id); if (a) abrirEtiquetas([etiquetaDePedido(a)], `Etiqueta del pedido #${a.numero}`); break; }
@@ -3890,6 +3988,7 @@ async function init() {
   $('#btnDisparar').innerHTML = `${ICON.camara}<span>Tomar foto</span>`;
   $('#tabs').innerHTML = TABS.map(t => `<button type="button" class="tab" data-ir="${t.id}" aria-current="false">${ICON[t.ico]}<span>${t.txt}</span></button>`).join('');
   pintarBotonTema();
+  ponerOjito(sinGanancias);
   ir('hoy');
   const cfg = window.MI_TIENDA_CONFIG;
   if (cfg && cfg.supabaseUrl && cfg.supabaseAnonKey) { await iniciarSupabase(cfg); return; }
