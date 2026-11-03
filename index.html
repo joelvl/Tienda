@@ -545,7 +545,8 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ESC[c]);
-const nf = new Intl.NumberFormat('es-CR', { maximumFractionDigits: 0 });
+// Miles con punto, siempre: 1.900, 10.900, 100.000
+const nf = { format: n => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') };
 const col = n => (Number(n) < 0 ? '-' : '') + '₡' + nf.format(Math.abs(Math.round(Number(n) || 0)));
 const DIA = 86400000;
 const inicioDia = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -620,7 +621,7 @@ const COLORES = [
 const NOMBRES_COLOR = COLORES.map(c => c[0]);
 const GENEROS = ['Mujer', 'Hombre', 'Unisex'];
 const generoDe = p => GENEROS.includes(p.genero) ? p.genero : 'Mujer';   // las prendas viejas no lo traen: son de mujer
-const RANGOS_PRECIO = [[0, 4999, 'Menos de ₡5 000'], [5000, 9999, '₡5 000 a ₡9 999'], [10000, 14999, '₡10 000 a ₡14 999'], [15000, 0, '₡15 000 o más']];
+const RANGOS_PRECIO = [[0, 4999, 'Menos de ₡5.000'], [5000, 9999, '₡5.000 a ₡9.999'], [10000, 14999, '₡10.000 a ₡14.999'], [15000, 0, '₡15.000 o más']];
 const muestraColor = n => (COLORES.find(c => c[0] === n) || [n, 'transparent'])[1];
 const TAMANOS = {
   '50x30': { w: 50, h: 30, nombre: '50 × 30 mm' },
@@ -1158,7 +1159,7 @@ function htmlAvisoCompraAbierta() {
 function htmlAvisoMejorTienda() {
   const m = mejorTienda();
   if (!m) return '';
-  return `<div class="aviso aviso-bien"><p>Donde más le conviene comprar: <b>${esc(m.t.nombre)}</b>. Por cada ₡1 000 que le cuesta una prenda de ahí, la vende en <b>${col(m.st.por1000)}</b>.</p>
+  return `<div class="aviso aviso-bien"><p>Donde más le conviene comprar: <b>${esc(m.t.nombre)}</b>. Por cada ₡1.000 que le cuesta una prenda de ahí, la vende en <b>${col(m.st.por1000)}</b>.</p>
     <button type="button" class="btn btn-sec" data-accion="ver-tiendas">${ICON.tienda} Comparar tiendas</button></div>`;
 }
 function rangoPeriodo() {
@@ -1240,7 +1241,7 @@ function htmlBienvenida(saludo) {
     <h1>¡Bienvenida a su tienda!</h1>
     <p class="intro">Así funciona, paso a paso:</p>
     <ol class="pasos-inicio">
-      <li><span><b>Registre su compra.</b> Por ejemplo: una paca que le costó ₡100 000. Si no sabe cuántas prendas trae, no importa: se calcula sola.</span></li>
+      <li><span><b>Registre su compra.</b> Por ejemplo: una paca que le costó ₡100.000. Si no sabe cuántas prendas trae, no importa: se calcula sola.</span></li>
       <li><span><b>Tómele fotos a las prendas</b> o elija varias de la galería. La tienda reconoce qué es cada una y su color.</span></li>
       <li><span><b>Ponga la talla y el precio</b> de cada prenda, una por una, e imprima las etiquetas.</span></li>
       <li><span><b>Cuando venda, escanee las etiquetas</b> con la cámara. La tienda le dice cuánto ganó.</span></li>
@@ -2275,7 +2276,7 @@ function htmlTiendaFila({ t, st }, mejor) {
   return `<button type="button" class="compra tienda-fila ${mejor ? 'es-mejor' : ''}" data-tienda="${esc(t.id)}">
     <span class="t"><span>${esc(t.nombre)}</span>${mejor ? '<span class="insignia">La que más le deja</span>' : ''}</span>
     ${t.zona ? `<span class="nota">${esc(t.zona)}</span>` : ''}
-    ${st.vendidasFinal ? `<span class="rinde"><span>Por cada ₡1 000 que le cuesta una prenda, la vende en</span><b class="${st.por1000 < 1000 ? 'rojo' : ''}">${col(st.por1000)}</b></span>`
+    ${st.vendidasFinal ? `<span class="rinde"><span>Por cada ₡1.000 que le cuesta una prenda, la vende en</span><b class="${st.por1000 < 1000 ? 'rojo' : ''}">${col(st.por1000)}</b></span>`
       : `<span class="nota mt">${st.vendidas ? 'Cierre sus compras para ver cuánto le deja esta tienda.' : 'Todavía no ha vendido prendas de esta tienda.'}</span>`}
     <span class="mini-cifras"><span><small>Invirtió</small><b>${col(st.invertido)}</b></span><span><small>Vendió</small><b>${col(st.vendido)}</b></span><span><small>Ganó</small><b class="${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</b></span></span>
     ${st.invertido ? `<span class="prog ${pct >= 100 ? '' : 'falta'}" role="progressbar" aria-label="Recuperado de lo invertido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
@@ -2297,7 +2298,7 @@ function abrirTienda(id) {
       ${st.vendidasFinal ? `<div><dt>Gana por prenda</dt><dd>${col(st.ganPorPrenda)}</dd></div>` : ''}
     </dl>
     ${st.abiertas ? `<p class="nota">${plural(st.abiertas, 'compra está abierta', 'compras están abiertas')}: sus prendas no cuentan en la ganancia hasta que la cierre.</p>` : ''}
-    ${st.vendidasFinal ? `<p>Por cada ₡1 000 que le cuesta una prenda de esta tienda, la vende en <b>${col(st.por1000)}</b>. Tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse, en promedio.</p>` : '<p class="nota">Cuando venda prendas de esta tienda, aquí verá cuánto le dejan.</p>'}
+    ${st.vendidasFinal ? `<p>Por cada ₡1.000 que le cuesta una prenda de esta tienda, la vende en <b>${col(st.por1000)}</b>. Tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse, en promedio.</p>` : '<p class="nota">Cuando venda prendas de esta tienda, aquí verá cuánto le dejan.</p>'}
     <h3 class="grupo-sel">Compras en esta tienda</h3>
     ${st.compras.length ? st.compras.map(htmlCompraFila).join('') : '<p class="nota">Todavía no hay compras de esta tienda.</p>'}
     <div class="botones-hoja">
@@ -2709,16 +2710,10 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
     g.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(y));
   }
 
-  // Abajo: el código y el WhatsApp de la tienda
+  // Abajo: el código de la prenda
   const yPie = H - 1.3 * u;
-  const cod = String(p.codigo), tel = S.config.whatsapp ? 'WhatsApp ' + telBonito(S.config.whatsapp) : '';
-  if (tel) {
-    let s = sPie;
-    g.font = `700 ${s}px ${fam}`;
-    while (g.measureText(cod).width + 2 * u + g.measureText(tel).width > ancho && s > 1.7 * u) { s -= 0.1 * u; g.font = `700 ${s}px ${fam}`; }
-    g.fillText(cod, m, yPie);
-    g.textAlign = 'right'; g.fillText(recortar(g, tel, ancho - g.measureText(cod).width - 2 * u), W - m, yPie);
-  } else { g.font = `700 ${sPie}px ${fam}`; g.textAlign = 'center'; g.fillText(cod, W / 2, yPie); }
+  g.font = `700 ${sPie}px ${fam}`; g.textAlign = 'center';
+  g.fillText(String(p.codigo), W / 2, yPie);
   g.textAlign = 'left';
   return c;
 }
@@ -2781,8 +2776,8 @@ const BT_SERVICIOS = [
 ];
 const BT_PUNTOS_MM = 8;          // 203 dpi
 const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
-// En la HL2200 lo impreso cae unos 3 mm a la derecha y 2 mm más abajo del borde de la etiqueta: se deja ese margen
-const BT_CORRIDO_X = 3, BT_CORRIDO_Y = 2.5;
+// En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
+const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
 const BT = { disp: null, car: null, trozo: 180 };
 const hayBluetooth = () => !!navigator.bluetooth;
 
@@ -2859,11 +2854,11 @@ function abrirAjustes() {
   const cfg = S.config;
   abrirHoja(`<h2>Ajustes</h2>
     <div class="campo"><label for="aNombre">Nombre de la tienda</label><input id="aNombre" autocomplete="off" maxlength="40" value="${esc(cfg.nombre)}"><p class="nota mt">Sale en cada etiqueta.</p></div>
-    <div class="campo"><label for="aFactor">Precio sugerido</label><p class="nota">Si una prenda le cuesta ₡1 000, sugerir venderla en:</p><div class="dinero"><input id="aFactor" inputmode="numeric" pattern="[0-9]*" value="${a900((Number(cfg.factor) || 2.5) * 1000)}"></div><p class="nota mt">Los precios siempre terminan en 900 (₡1 900, ₡2 900…).</p></div>
+    <div class="campo"><label for="aFactor">Precio sugerido</label><p class="nota">Si una prenda le cuesta ₡1.000, sugerir venderla en:</p><div class="dinero"><input id="aFactor" inputmode="numeric" pattern="[0-9]*" value="${a900((Number(cfg.factor) || 2.5) * 1000)}"></div><p class="nota mt">Los precios siempre terminan en 900 (₡1.900, ₡2.900…).</p></div>
     <div class="campo"><label for="aIa">Reconocimiento de fotos</label><select id="aIa">
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
-    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">Sale en cada etiqueta, y en el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
+    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">En el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
