@@ -3340,12 +3340,16 @@ const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
 // En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
 const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
 const BT = { disp: null, car: null };
+// La lista de Bluetooth muestra solo la impresora de la tienda (se llama «Thermo print»)
+const BT_NOMBRES = ['Thermo', 'THERMO', 'thermo', 'HOP-', 'HL2200'];
+// Si se mandan muchas seguidas, la impresora se traba: cada 2 etiquetas descansa un rato
+const BT_CADA = 2, BT_DESCANSO = 3000;
 const hayBluetooth = () => !!navigator.bluetooth;
 
 async function conectarImpresora() {
   if (BT.car && BT.disp.gatt.connected) return;
   if (!BT.disp) {
-    BT.disp = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BT_SERVICIOS });
+    BT.disp = await navigator.bluetooth.requestDevice({ filters: BT_NOMBRES.map(namePrefix => ({ namePrefix })), optionalServices: BT_SERVICIOS });
     BT.disp.addEventListener('gattserverdisconnected', () => { BT.car = null; });
   }
   const gatt = await BT.disp.gatt.connect();
@@ -3417,11 +3421,14 @@ async function imprimirBluetooth(lista, boton) {
     for (let i = 0; i < lista.length; i++) {
       boton.textContent = lista.length > 1 ? `Imprimiendo ${i + 1} de ${lista.length}…` : 'Imprimiendo…';
       await enviarBT(ascii(tsplEtiqueta(lista[i], t)));
-      if (i < lista.length - 1) await espera(500);
+      if (i < lista.length - 1) {
+        if ((i + 1) % BT_CADA === 0) { boton.textContent = `Dejando descansar la impresora… (${i + 1} de ${lista.length})`; await espera(BT_DESCANSO); }
+        else await espera(500);
+      }
     }
     toast(lista.length > 1 ? `Listo: se mandaron ${lista.length} etiquetas a la impresora.` : 'Listo: se mandó la etiqueta a la impresora.', 'bien');
   } catch (e) {
-    if (e && e.name === 'NotFoundError') { /* cerró la lista sin elegir */ }
+    if (e && e.name === 'NotFoundError') toast('No se eligió la impresora. Si no aparece «Thermo print» en la lista, revise que esté encendida y cerca.');
     else if (e && e.code === 'bt_sin_canal') toast('Se conectó, pero esa impresora no deja mandarle etiquetas. ¿Eligió la impresora correcta?', 'mal');
     else { BT.car = null; console.error(e); toast(`No se pudo imprimir. Revise que la impresora esté encendida y que la app Diabel esté cerrada, y vuelva a intentar. (${(e && (e.message || e.code)) || e})`, 'mal'); }
   }

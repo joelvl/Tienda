@@ -1,5 +1,5 @@
 // Arma la carpeta dist/ que se publica en GitHub Pages.
-// Inserta en index.html, catalogo.html y pedido.html la dirección de Supabase y la llave pública (publicable),
+// Inserta en index.html, catalogo.html, pedido.html y conectar.html la dirección de Supabase y la llave pública (publicable),
 // más lo necesario para instalar la tienda en la pantalla de inicio del celular.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
@@ -63,6 +63,18 @@ pedido = pedido.replace(marca, [
   `<link rel="apple-touch-icon" href="icono-180.png">`,
 ].join("\n"));
 writeFileSync("dist/pedido.html", pedido);
+// Página donde se entra al conectar Claude (conector MCP): la dirección de Supabase y el dominio de usuarios.
+let conectar = readFileSync("conectar.html", "utf8");
+if (!conectar.includes(marca)) {
+  console.error(`No se encontró ${marca} en conectar.html`);
+  process.exit(1);
+}
+conectar = conectar.replace(marca, [
+  `<script>window.MI_TIENDA_CONFIG=${JSON.stringify({ supabaseUrl: url, dominioUsuarios: dominio }).replace(/</g, "\\u003c")};</script>`,
+  `<meta name="theme-color" content="#C92A62">`,
+  `<link rel="icon" href="icono-192.png">`,
+].join("\n"));
+writeFileSync("dist/conectar.html", conectar);
 // Página de prueba de la impresora Bluetooth (no necesita configuración)
 copyFileSync("impresora.html", "dist/impresora.html");
 for (const f of ["manifest.webmanifest", "catalogo.webmanifest", "icono-180.png", "icono-192.png", "icono-512.png"]) {

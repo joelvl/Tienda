@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conectar con Claude</title>
+<meta name="description" content="Entrar con el usuario de la tienda para que Claude pueda consultarla">
+<meta name="robots" content="noindex">
+<!--MI_TIENDA_CONFIG-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700&display=swap">
+<style>
+/* Claude abre esta página para conectar el conector «Mi tienda»: se entra con el usuario de la tienda. */
+:root{
+  --fondo:#EFEDF6; --superficie:#FFFFFF; --tinta:#221F3B; --tinta-suave:#5B5775; --linea:#D8D4E6;
+  --marca:#C92A62; --marca-tinta:#FFFFFF; --mal:#B3261E; --mal-suave:#FCE8E6; --foco:#2F54EB;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#15131D; --superficie:#221F2D; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+    --marca:#FF6B9C; --marca-tinta:#1B1020; --mal:#FF8E7E; --mal-suave:#3A1F1C; --foco:#8EA8FF;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#15131D; --superficie:#221F2D; --tinta:#F2F0F9; --tinta-suave:#B0ABC6; --linea:#3A3650;
+  --marca:#FF6B9C; --marca-tinta:#1B1020; --mal:#FF8E7E; --mal-suave:#3A1F1C; --foco:#8EA8FF;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--fondo);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:18px;line-height:1.4;display:grid;place-items:center;padding:24px 16px}
+:focus-visible{outline:3px solid var(--foco);outline-offset:2px}
+main{width:100%;max-width:420px;background:var(--superficie);border-radius:20px;padding:28px 22px}
+.logo{width:56px;height:56px;border-radius:16px;background:var(--marca);color:var(--marca-tinta);display:grid;place-items:center;margin-bottom:16px}
+.logo svg{width:32px;height:32px}
+h1{margin:0 0 8px;font-size:26px;line-height:1.2}
+p{margin:0 0 16px;color:var(--tinta-suave)}
+label{display:block;font-weight:700;margin:14px 0 6px}
+input{width:100%;min-height:54px;border:2px solid var(--linea);border-radius:14px;background:var(--fondo);color:var(--tinta);font:inherit;padding:0 16px}
+input:focus{border-color:var(--marca);outline:none}
+button{appearance:none;width:100%;min-height:58px;margin-top:22px;border:0;border-radius:14px;background:var(--marca);color:var(--marca-tinta);font:inherit;font-weight:700;font-size:19px;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+.error{background:var(--mal-suave);color:var(--mal);border-radius:12px;padding:12px 14px;margin:16px 0 0;font-weight:700}
+.nota{font-size:16px;margin:18px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/></svg></span>
+  <h1>Conectar Claude con su tienda</h1>
+  <p>Entre con el mismo usuario y contraseña de la tienda. Claude solo va a poder <b>consultar</b>: no puede vender, borrar ni cambiar nada.</p>
+  <form id="f" novalidate>
+    <label for="u">Usuario</label>
+    <input id="u" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="c">Contraseña</label>
+    <input id="c" type="password" autocomplete="current-password" required>
+    <button type="submit" id="b">Entrar y conectar</button>
+    <p class="error" id="e" role="alert" hidden></p>
+  </form>
+  <p class="nota">Si no abrió esta página desde Claude, ciérrela.</p>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const cfg = window.MI_TIENDA_CONFIG || {};
+const q = new URLSearchParams(location.search);
+// Igual que la tienda: el usuario se convierte en correo con el dominio de la tienda
+const correoDeUsuario = u => { u = String(u || '').trim().toLowerCase(); return u.includes('@') ? u : `${u.replace(/[^a-z0-9._-]/g, '')}@${cfg.dominioUsuarios || 'mitienda.app'}`; };
+const error = t => { const e = $('#e'); e.textContent = t; e.hidden = !t; };
+if (!q.get('redirect_uri') || !q.get('code_challenge')) { error('Abra esta página desde Claude, al conectar «Mi tienda».'); $('#b').disabled = true; }
+$('#f').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  error('');
+  if (!$('#u').value.trim() || !$('#c').value) { error('Escriba su usuario y su contraseña.'); return; }
+  const b = $('#b'); b.disabled = true; b.textContent = 'Revisando…';
+  try {
+    const datos = Object.fromEntries(['client_id', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'state', 'response_type', 'resource', 'scope'].map(k => [k, q.get(k) || undefined]));
+    const r = await fetch(`${cfg.supabaseUrl}/functions/v1/mcp/entrar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...datos, email: correoDeUsuario($('#u').value), password: $('#c').value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.redirect) throw new Error(j.error || 'No se pudo conectar. Vuelva a intentar.');
+    b.textContent = 'Listo, volviendo a Claude…';
+    location.href = j.redirect;
+  } catch (e) {
+    error(e.message || 'No se pudo conectar. Revise el internet y vuelva a intentar.');
+    b.disabled = false; b.textContent = 'Entrar y conectar';
+  }
+});
+</script>
+</body>
+</html>

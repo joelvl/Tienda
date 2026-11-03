@@ -1,14 +1,23 @@
 // Supabase Edge Function: conector de Claude (servidor MCP) para consultar la tienda desde claude.ai.
-// Solo lee. Se conecta con la dirección …/functions/v1/mcp/<MCP_CLAVE>; sin la clave no responde.
+// Solo lee. Dirección: …/functions/v1/mcp. Para usarlo hay que entrar con un usuario de la tienda (ver acceso.ts).
 //
-// Secretos (los pone GitHub Actions): MCP_CLAVE. Supabase da solos SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
+// Secretos (los pone GitHub Actions): MCP_CLAVE (firma los permisos) y MCP_LOGIN_URL (la página conectar.html).
+// Supabase da solos SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY.
 // Habla MCP por HTTP (Streamable HTTP) respondiendo JSON, sin sesiones.
 
 import { correr, INSTRUCCIONES, listaHerramientas, type Datos } from "./tienda.ts";
+import { type Config, desafio, entrar, metadatosRecurso, metadatosServidor, permisoOk, registrar, token } from "./acceso.ts";
 
-const CLAVE = Deno.env.get("MCP_CLAVE") ?? "";
 const URL_SB = Deno.env.get("SUPABASE_URL") ?? "";
 const LLAVE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const CFG: Config = {
+  base: `${URL_SB}/functions/v1/mcp`,
+  login: Deno.env.get("MCP_LOGIN_URL") || "https://joelvl.github.io/Tienda/conectar.html",
+  clave: Deno.env.get("MCP_CLAVE") ?? "",
+  urlSb: URL_SB,
+  llavePublica: Deno.env.get("SUPABASE_ANON_KEY") || LLAVE,
+  llaveServicio: LLAVE,
+};
 const VERSIONES = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 const camel = (k: string) => k.replace(/_([a-z])/g, (_, m) => m.toUpperCase());
@@ -38,14 +47,6 @@ async function cargar(): Promise<Datos> {
   const datos = { prendas, compras, tiendas, clientes, apartados, abonos, config: config[0] ?? {} } as Datos;
   cache = { t: Date.now(), datos };
   return datos;
-}
-
-// Compara la clave sin dar pistas por el tiempo que tarda
-function claveOk(dada: string) {
-  if (CLAVE.length < 20 || dada.length !== CLAVE.length) return false;
-  let x = 0;
-  for (let i = 0; i < CLAVE.length; i++) x |= CLAVE.charCodeAt(i) ^ dada.charCodeAt(i);
-  return x === 0;
 }
 
 type Pedido = { jsonrpc: "2.0"; id?: string | number | null; method: string; params?: Record<string, any> };
@@ -78,15 +79,33 @@ async function atender(m: Pedido) {
   }
 }
 
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
+const enJson = (r: { status: number; json: unknown }, extra: Record<string, string> = {}) =>
+  Response.json(r.json, { status: r.status, headers: { ...CORS, "Cache-Control": "no-store", ...extra } });
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (CFG.clave.length < 20) return new Response("Falta configurar MCP_CLAVE", { status: 503 });
+  // Lo que viene después de /mcp en la dirección
   const partes = new URL(req.url).pathname.split("/").filter(Boolean);
-  if (!claveOk(partes[partes.length - 1] ?? "")) return new Response("No encontrado", { status: 404 });
-  if (req.method !== "POST") return new Response(null, { status: 405, headers: { Allow: "POST" } });
+  const ruta = "/" + partes.slice(partes.indexOf("mcp") + 1).join("/");
+
+  if (req.method === "GET" && ruta.startsWith("/.well-known/oauth-protected-resource")) return enJson({ status: 200, json: metadatosRecurso(CFG) });
+  if (req.method === "GET" && (ruta.startsWith("/.well-known/oauth-authorization-server") || ruta.startsWith("/.well-known/openid-configuration"))) return enJson({ status: 200, json: metadatosServidor(CFG) });
+  if (req.method === "GET" && ruta === "/jwks") return enJson({ status: 200, json: { keys: [] } });
+  if (req.method === "POST" && ruta === "/registrar") return enJson(registrar(await req.json().catch(() => ({}))));
+  if (req.method === "POST" && ruta === "/entrar") return enJson(await entrar(CFG, await req.json().catch(() => ({}))));
+  if (req.method === "POST" && ruta === "/token") return enJson(await token(CFG, new URLSearchParams(await req.text())));
+  if (ruta !== "/") return new Response("No encontrado", { status: 404, headers: CORS });
+
+  // MCP: solo con permiso (si no, Claude pide entrar con el usuario de la tienda)
+  if (!(await permisoOk(CFG, req))) return enJson({ status: 401, json: { error: "invalid_token", error_description: "Entre con su usuario de la tienda." } }, { "WWW-Authenticate": desafio(CFG) });
+  if (req.method !== "POST") return new Response(null, { status: 405, headers: { ...CORS, Allow: "POST" } });
   let cuerpo: Pedido | Pedido[];
   try { cuerpo = await req.json(); } catch { return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON inválido" } }, { status: 400 }); }
   const lista = Array.isArray(cuerpo) ? cuerpo : [cuerpo];
   const respuestas = (await Promise.all(lista.map(atender))).filter((r) => r !== null);
   // Solo avisos (sin id): se aceptan sin respuesta
-  if (!respuestas.length) return new Response(null, { status: 202 });
-  return Response.json(Array.isArray(cuerpo) ? respuestas : respuestas[0]);
+  if (!respuestas.length) return new Response(null, { status: 202, headers: CORS });
+  return Response.json(Array.isArray(cuerpo) ? respuestas : respuestas[0], { headers: CORS });
 });

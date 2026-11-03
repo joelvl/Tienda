@@ -8,6 +8,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 |---|---|
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
 | `catalogo.html` | Catálogo para los clientes: solo las prendas a la venta (foto, talla, color, precio), sin costos ni ganancias. |
+| `conectar.html` | Donde se entra con el usuario de la tienda al conectar Claude (conector MCP). |
 | `pedido.html` | Lo que ve el cliente con el enlace de su pedido: sus prendas, sus abonos y cuánto le falta. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
@@ -129,7 +130,8 @@ El precio de oferta se redondea a los ₡100. En la tienda y en el catálogo se 
 Desde claude.ai (o la app de Claude en el celular) se le puede preguntar, por ejemplo: «¿cuánto vendí esta semana y cuánto gané?», «¿quién me debe en pedidos?», «¿qué vestidos talla M tengo?», «¿de cuál tienda me conviene comprar?». El conector **solo lee**: no puede vender, borrar ni cambiar nada.
 
 Una sola vez:
-1. Cree una clave larga al azar (en la Terminal: `openssl rand -hex 24`) y guárdela en GitHub → Settings → Secrets and variables → Actions como **`MCP_CLAVE`**. Al subir el siguiente cambio a `main`, GitHub Actions la pasa a Supabase y publica el conector.
-2. En claude.ai → Ajustes → Conectores → **Agregar conector personalizado**: nombre «Mi tienda» y la dirección `https://<proyecto>.supabase.co/functions/v1/mcp/<MCP_CLAVE>`.
+1. En GitHub → Settings → Secrets and variables → Actions debe estar **`MCP_CLAVE`** (una clave larga al azar, por ejemplo de `openssl rand -hex 24`). Con ella se firman los permisos; nadie la tiene que escribir.
+2. En claude.ai → Ajustes → Conectores → **Agregar conector personalizado**: nombre «Mi tienda» y la dirección `https://<proyecto>.supabase.co/functions/v1/mcp` (sin nada más al final).
+3. Al conectarlo, Claude abre `conectar.html`: se entra con el **mismo usuario y contraseña de la tienda**. Claude recibe un permiso que dura una hora y se renueva solo.
 
-Quien tenga esa dirección puede ver los datos de la tienda: no la comparta. Si se filtra, cambie `MCP_CLAVE` en GitHub, vuelva a desplegar y actualice la dirección en Claude.
+Si borra o bloquea un usuario en Supabase, ese Claude pierde el acceso en menos de una hora. Si cambia `MCP_CLAVE`, todos tienen que volver a conectar.

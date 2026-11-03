@@ -7,6 +7,6 @@ project_id = "mi-tienda"
 verify_jwt = true
 
 [functions.mcp]
-# Conector de Claude: claude.ai no manda sesión de Supabase. La función exige
-# la clave secreta MCP_CLAVE al final de la dirección, y solo lee.
+# Conector de Claude: claude.ai no manda sesión de Supabase. La función tiene su propio
+# login (OAuth con el usuario de la tienda, firmado con MCP_CLAVE), y solo lee.
 verify_jwt = false
