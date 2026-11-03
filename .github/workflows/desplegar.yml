@@ -35,7 +35,7 @@ jobs:
         run: supabase link --project-ref "$PROJECT_REF"
 
       - name: Aplicar cambios a la base de datos
-        run: supabase db push
+        run: supabase db push --linked
 
       - name: Guardar la llave de Claude en Supabase
         env:
