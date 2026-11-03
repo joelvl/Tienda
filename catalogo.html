@@ -52,6 +52,7 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;appearance:none;min-height:44px;padding:0 16px;border-radius:999px;border:2px solid var(--linea);background:var(--superficie);cursor:pointer;white-space:nowrap}
+.chip-oferta{border-color:var(--marca);color:var(--marca);font-weight:700}
 .chip[aria-pressed="true"]{background:var(--tinta);color:var(--fondo);border-color:var(--tinta);font-weight:700}
 .etq{font-size:15px;color:var(--tinta-suave);margin:10px 0 0}
 .cuenta{color:var(--tinta-suave);margin:12px 0}
@@ -63,6 +64,10 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .foto svg{width:48px;height:48px}
 .info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
 .precio{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.precio .oferta{color:var(--marca)}
+.precio s{display:block;font-size:16px;font-weight:400;color:var(--tinta-suave);text-decoration-thickness:2px}
+.prenda{position:relative}
+.sello{position:absolute;top:8px;left:8px;background:var(--marca);color:var(--marca-tinta);font-weight:700;font-size:16px;padding:4px 10px;border-radius:8px}
 .nombre{font-weight:700;overflow-wrap:anywhere}
 .meta{color:var(--tinta-suave);font-size:15px}
 .quiero{margin-top:auto;padding-top:10px}
@@ -112,13 +117,17 @@ const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return 
 function enlaceQuiero(p) {
   const tel = telWhatsApp(E.tienda.whatsapp);
   if (!tel) return '';
-  const texto = `¡Hola! Me interesa esta prenda del catálogo: ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ''}, ${col(p.precio)} (código ${p.codigo}). ¿Todavía está disponible?`;
+  const texto = `¡Hola! Me interesa esta prenda del catálogo: ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ''}, ${col(precioActual(p))}${enOferta(p) ? ' en oferta' : ''} (código ${p.codigo}). ¿Todavía está disponible?`;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
 }
+// Ofertas: el precio con descuento se redondea a los ₡100, igual que en la tienda
+const OFERTAS = '_ofertas';
+const enOferta = p => Number(p.descuento) > 0;
+const precioActual = p => enOferta(p) ? Math.round((Number(p.precio) || 0) * (100 - p.descuento) / 10000) * 100 : (Number(p.precio) || 0);
 const meta = p => [p.talla ? 'Talla ' + p.talla : '', p.color].filter(Boolean).join(' · ');
 function filtradas() {
   const nq = normal(E.q);
-  return E.prendas.filter(p => (!E.tipo || p.tipo === E.tipo) && (!E.talla || p.talla === E.talla)
+  return E.prendas.filter(p => (!E.tipo || (E.tipo === OFERTAS ? enOferta(p) : p.tipo === E.tipo)) && (!E.talla || p.talla === E.talla)
     && (!nq || nq.split(/\s+/).every(w => normal([p.descripcion, p.tipo, p.color, p.talla, 'talla ' + p.talla, p.codigo].join(' ')).includes(w))));
 }
 function chips(cont, valores, actual, campo) {
@@ -128,7 +137,11 @@ function pintar() {
   const cuentaTipo = new Map();
   for (const p of E.prendas) cuentaTipo.set(p.tipo, (cuentaTipo.get(p.tipo) || 0) + 1);
   chips($('#tipos'), [...cuentaTipo.keys()].sort((a, b) => cuentaTipo.get(b) - cuentaTipo.get(a)), E.tipo, 'tipo');
-  const tallas = [...new Set(E.prendas.filter(p => !E.tipo || p.tipo === E.tipo).map(p => p.talla).filter(Boolean))]
+  // «Ofertas» va de primero, después de «Todo»
+  const nOfertas = E.prendas.filter(enOferta).length;
+  if (nOfertas) $('#tipos').firstElementChild.insertAdjacentHTML('afterend', `<button type="button" class="chip chip-oferta" data-tipo="${OFERTAS}" aria-pressed="${E.tipo === OFERTAS}">Ofertas (${nOfertas})</button>`);
+  else if (E.tipo === OFERTAS) E.tipo = '';
+  const tallas = [...new Set(E.prendas.filter(p => !E.tipo || (E.tipo === OFERTAS ? enOferta(p) : p.tipo === E.tipo)).map(p => p.talla).filter(Boolean))]
     .sort((a, b) => (parseFloat(a) || 999) - (parseFloat(b) || 999) || a.localeCompare(b, 'es'));
   if (E.talla && !tallas.includes(E.talla)) E.talla = '';
   $('#zonaTallas').hidden = tallas.length < 2;
@@ -141,7 +154,8 @@ function pintar() {
     const f = E.fotos.get(p.codigo), wa = enlaceQuiero(p);
     return `<article class="prenda">
       <div class="foto" data-codigo="${esc(p.conFoto ? p.codigo : '')}">${f ? `<img src="${f}" alt="${esc(p.descripcion)}">` : PERCHA}</div>
-      <div class="info"><span class="precio">${col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
+      ${enOferta(p) ? `<span class="sello">−${esc(p.descuento)} %</span>` : ''}
+      <div class="info"><span class="precio">${enOferta(p) ? `<s aria-label="Antes ${col(p.precio)}">${col(p.precio)}</s><span class="oferta">${col(precioActual(p))}</span>` : col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
         <span class="meta">${esc(meta(p))}</span><span class="meta">Código ${esc(p.codigo)}</span>
         ${wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener">${WA} La quiero</a></div>` : ''}</div>
     </article>`;

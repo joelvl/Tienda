@@ -181,6 +181,23 @@ input:focus,select:focus{border-color:var(--foco)}
 .tag .meta.rojo{color:var(--pierde)}
 .tag.vendida .precio{color:var(--gana)}
 .sello{position:absolute;top:40px;right:18px;background:var(--gana);color:var(--gana-tinta);font-weight:700;font-size:14px;padding:4px 10px;border-radius:6px;transform:rotate(4deg)}
+.sello-oferta{background:var(--marca);color:var(--marca-tinta);font-size:16px}
+s.antes{color:var(--tinta-suave);font-weight:400;text-decoration-thickness:2px}
+.tag .precio s.antes{display:block;font-size:17px}
+.oferta{color:var(--marca)}
+.tag.marcada{box-shadow:inset 0 0 0 4px var(--marca)}
+.check-sel{position:absolute;top:40px;left:18px;z-index:1;background:var(--marca);color:var(--marca-tinta);border-radius:50%;width:34px;height:34px;display:grid;place-items:center}
+.check-sel .ico{width:26px;height:26px}
+.barra-oferta{position:sticky;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:5;background:var(--marca-suave);border:2px solid var(--marca);border-radius:16px;padding:10px 12px;margin-top:14px}
+.barra-oferta p{margin:0 0 8px}
+.bo-botones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bo-botones .btn-marca{grid-column:1/-1}
+@media (min-width:900px){.barra-oferta{bottom:12px}.bo-botones{grid-template-columns:1fr auto 1.4fr}.bo-botones .btn-marca{grid-column:auto}}
+@media (orientation:landscape) and (max-height:520px){.barra-oferta{bottom:8px}}
+.lista-oferta{list-style:none;padding:0;margin:10px 0}
+.lista-oferta li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--linea)}
+.lista-oferta li span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lista-oferta li span:last-child{flex:none}
 
 /* compras */
 .compra{appearance:none;border:0;font:inherit;color:inherit;text-align:left;width:100%;display:block;background:var(--superficie);border-radius:18px;padding:16px 18px;margin:12px 0;cursor:pointer}
@@ -660,7 +677,8 @@ let ultimaGuardada = null;
 let hojaCtx = null;
 let focoPrevio = null;
 let ultimoCodigoLocal = 0;
-const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 };
+const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, ofertas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 };
+let ofertaSel = null;   // prendas elegidas para ponerlas en oferta (Set de ids), o null si no se está eligiendo
 let pestanaCompras = 'compras';
 const cola = { items: [], i: 0, compraId: null, guardadas: [], cargando: 0 };
 const periodo = { modo: 'semana', offset: 0 };
@@ -692,7 +710,7 @@ function usar(nombre) {
 }
 
 /* ================= ALMACENAMIENTO ================= */
-const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero', 'apartadoId'];
+const CAMPOS_PRENDA = ['id', 'codigo', 'tipo', 'descripcion', 'talla', 'color', 'compraId', 'costo', 'costoFijo', 'precio', 'estado', 'creada', 'foto', 'impresa', 'precioVenta', 'fechaVenta', 'ventaId', 'clienteTel', 'genero', 'apartadoId', 'descuento'];
 const CAMPOS_COMPRA = ['id', 'nombre', 'costo', 'cantidad', 'fecha', 'nota', 'tiendaId'];
 const CAMPOS_TIENDA = ['id', 'nombre', 'zona', 'nota', 'creada'];
 const CAMPOS_CLIENTE = ['telefono', 'nombre', 'creada'];
@@ -982,6 +1000,13 @@ function cuentaCompra(id) {
 const costoUnidad = c => { if (!c) return 0; const n = c.cantidad > 0 ? c.cantidad : Math.max(1, cuentaCompra(c.id)); return Math.round((Number(c.costo) || 0) / n); };
 const costoDe = p => { if (p.costoFijo) return Number(p.costo) || 0; const c = compraPorId(p.compraId); return c ? costoUnidad(c) : (Number(p.costo) || 0); };
 const precioBase = costo => costo > 0 ? a900(costo * (Number(S.config.factor) || 2.5)) : 0;
+// Ofertas: el precio con descuento se redondea a los ₡100 (₡12.900 con 20 % = ₡10.300)
+const DESCUENTOS = [10, 15, 20, 25, 30, 40, 50];
+const precioOferta = (precio, d) => d > 0 ? Math.round((Number(precio) || 0) * (100 - d) / 10000) * 100 : (Number(precio) || 0);
+const enOferta = p => Number(p.descuento) > 0;
+const precioActual = p => precioOferta(p.precio, Number(p.descuento) || 0);
+// «₡12.900 ₡10.300» con el primero tachado
+const htmlPrecioOferta = p => enOferta(p) ? `<s class="antes">${col(p.precio)}</s> <span class="oferta">${col(precioActual(p))}</span>` : col(p.precio);
 const disponibles = () => S.prendas.filter(p => p.estado === 'disponible');
 const vendidas = () => S.prendas.filter(p => p.estado === 'vendida');
 const ganancia = p => (Number(p.precioVenta) || 0) - costoDe(p);
@@ -1130,6 +1155,7 @@ const TABS = [
   { id: 'clientes', txt: 'Clientes', ico: 'persona' },
 ];
 function ir(v) {
+  if (v !== 'prendas') ofertaSel = null;
   vista = v;
   $$('.tab').forEach(t => t.setAttribute('aria-current', t.dataset.ir === v ? 'page' : 'false'));
   const el = $('#vista');
@@ -1735,15 +1761,19 @@ function abrirResumenCola(g) {
 function htmlTag(p, paraVender) {
   const vendida = p.estado === 'vendida';
   const d = diasDesde(p.creada);
-  const attrs = paraVender ? `data-accion="al-carrito" data-id="${esc(p.id)}"` : `data-prenda="${esc(p.id)}"`;
+  let attrs = paraVender ? `data-accion="al-carrito" data-id="${esc(p.id)}"` : `data-prenda="${esc(p.id)}"`;
   let meta;
   if (vendida) { const g = ganancia(p); meta = `<span class="meta ${g >= 0 ? 'verde' : 'rojo'}">${g >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(g))}</span>`; }
   else if (d >= 30) meta = `<span class="meta alerta">${d} días en la tienda</span>`;
   else meta = `<span class="meta">Código ${esc(p.codigo)}</span>`;
-  return `<button type="button" class="tag ${vendida ? 'vendida' : ''}" ${attrs} aria-label="${esc(p.descripcion)}, ${vendida ? 'vendida en ' + col(p.precioVenta) : col(p.precio)}">
+  const marcada = ofertaSel && ofertaSel.has(p.id);
+  if (ofertaSel && !paraVender && p.estado === 'disponible') attrs = `data-accion="sel-oferta" data-id="${esc(p.id)}" aria-pressed="${marcada}"`;
+  const oferta = !vendida && enOferta(p);
+  return `<button type="button" class="tag ${vendida ? 'vendida' : ''} ${marcada ? 'marcada' : ''}" ${attrs} aria-label="${esc(p.descripcion)}, ${vendida ? 'vendida en ' + col(p.precioVenta) : oferta ? `antes ${col(p.precio)}, en oferta a ${col(precioActual(p))}` : col(p.precio)}">
+    ${marcada ? `<span class="check-sel">${ICON.check}</span>` : ''}
     ${p.foto ? `<img src="${p.foto}" alt="" loading="lazy">` : `<span class="sin-foto">${ICON.percha}</span>`}
-    ${vendida ? `<span class="sello">Vendida</span>` : p.estado === 'apartada' ? `<span class="sello">Apartada</span>` : ''}
-    <span class="precio">${col(vendida ? p.precioVenta : p.precio)}</span>
+    ${vendida ? `<span class="sello">Vendida</span>` : p.estado === 'apartada' ? `<span class="sello">Apartada</span>` : oferta ? `<span class="sello sello-oferta">−${p.descuento} %</span>` : ''}
+    <span class="precio">${vendida ? col(p.precioVenta) : htmlPrecioOferta(p)}</span>
     <span class="nombre">${esc(p.descripcion)}</span>
     <span class="meta">${p.talla ? 'Talla ' + esc(p.talla) : esc(p.tipo)}</span>
     ${meta}
@@ -1759,17 +1789,17 @@ function agregarAlCarrito(p, silencioso) {
   if (p.estado === 'vendida') { if (!silencioso) toast(`Esa prenda ya se vendió el ${fCorta.format(p.fechaVenta)}.`, 'mal'); return 'vendida'; }
   if (p.estado === 'apartada') { if (!silencioso) toast(`Esa prenda está apartada${textoDeApartado(p)}.`, 'mal'); return 'apartada'; }
   if (carrito.some(x => x.id === p.id)) { if (!silencioso) toast('Esa prenda ya está en la venta.'); return 'repetida'; }
-  carrito.push({ id: p.id, precio: p.precio });
+  carrito.push({ id: p.id, precio: precioActual(p) });
   guardarCarritoLocal();
   if (vista === 'vender') pintarCarrito(true);
-  if (!silencioso) toast(`Agregada a la venta: ${p.descripcion}, ${col(p.precio)}.`, 'bien');
+  if (!silencioso) toast(`Agregada a la venta: ${p.descripcion}, ${col(precioActual(p))}${enOferta(p) ? ` (en oferta, −${p.descuento} %)` : ''}.`, 'bien');
   return true;
 }
 function htmlFilaCarrito(x) {
   const g = x.precio - costoDe(x.p);
   return `<div class="fila-carrito" data-fila="${esc(x.id)}">
     <span class="fc-foto">${x.p.foto ? `<img src="${x.p.foto}" alt="">` : ICON.percha}</span>
-    <span class="fc-info"><b>${esc(x.p.descripcion)}</b><span class="nota">Código ${esc(x.p.codigo)}. Etiqueta ${col(x.p.precio)}${x.p.talla ? ', talla ' + esc(x.p.talla) : ''}</span></span>
+    <span class="fc-info"><b>${esc(x.p.descripcion)}</b><span class="nota">Código ${esc(x.p.codigo)}. Etiqueta ${col(x.p.precio)}${enOferta(x.p) ? `, oferta −${x.p.descuento} %` : ''}${x.p.talla ? ', talla ' + esc(x.p.talla) : ''}</span></span>
     <button type="button" class="fc-quitar" data-accion="quitar-carrito" data-id="${esc(x.id)}" aria-label="Quitar ${esc(x.p.descripcion)} de la venta">${ICON.x}</button>
     <div class="fc-precio">
       <button type="button" class="btn btn-sec" data-accion="carrito-delta" data-id="${esc(x.id)}" data-valor="-500" aria-label="Bajar 500 colones">−</button>
@@ -1952,7 +1982,7 @@ function manejarCodigo(texto) {
     return;
   }
   const r = agregarAlCarrito(p, true);
-  if (r === true) { ESCN.cuenta++; pitar(true); pintarEscaner(`Agregada: ${p.descripcion}, ${col(p.precio)}.`, 'ok'); }
+  if (r === true) { ESCN.cuenta++; pitar(true); pintarEscaner(`Agregada: ${p.descripcion}, ${col(precioActual(p))}${enOferta(p) ? ' (en oferta)' : ''}.`, 'ok'); }
   else if (r === 'repetida') pintarEscaner(`${p.descripcion} ya está en la venta.`, 'ok');
   else if (r === 'apartada') { pitar(false); pintarEscaner(`${p.descripcion} está apartada${textoDeApartado(p)}.`, 'mal'); }
   else { pitar(false); pintarEscaner(`${p.descripcion} ya se vendió el ${fCorta.format(p.fechaVenta)}.`, 'mal'); }
@@ -2100,7 +2130,7 @@ function coincideOrigen(p, o) {
   if (o.startsWith('t:')) { const c = compraPorId(p.compraId); return !!c && c.tiendaId === id; }
   return true;
 }
-const precioDe = p => p.estado === 'vendida' ? (p.precioVenta || 0) : (p.precio || 0);
+const precioDe = p => p.estado === 'vendida' ? (p.precioVenta || 0) : precioActual(p);
 const enRango = (p, min, max) => precioDe(p) >= (min || 0) && (!max || precioDe(p) <= max);
 // sin: el filtro que no se aplica, para contar cuántas habría en cada opción de ese filtro
 function prendasFiltradas(sin) {
@@ -2112,6 +2142,7 @@ function prendasFiltradas(sin) {
   if ((filtro.pmin || filtro.pmax) && sin !== 'precio') ps = ps.filter(p => enRango(p, filtro.pmin, filtro.pmax));
   if (filtro.origen) ps = ps.filter(p => coincideOrigen(p, filtro.origen));
   if (filtro.viejas) ps = ps.filter(p => p.estado === 'disponible' && diasDesde(p.creada) >= 30);
+  if (filtro.ofertas) ps = ps.filter(p => p.estado === 'disponible' && enOferta(p));
   if (filtro.q) ps = ps.filter(p => coincide(p, filtro.q));
   const t = p => p.estado === 'vendida' ? p.fechaVenta : p.creada;
   return ps.slice().sort((a, b) => t(b) - t(a));
@@ -2182,6 +2213,74 @@ function pintarListaPrendas() {
     ? `<div class="grid-tags">${vis.map(p => htmlTag(p, false)).join('')}</div>
        ${ps.length > vis.length ? `<button type="button" class="btn btn-sec btn-enorme mt" data-accion="ver-mas">Ver más prendas</button>` : ''}`
     : `<div class="vacio"><p>No hay prendas con esos filtros.</p></div>`;
+  pintarBarraOferta(ps);
+}
+
+/* ================= OFERTAS ================= */
+// En Prendas se eligen las prendas tocándolas y luego se les pone el mismo descuento a todas.
+function pintarBarraOferta(ps) {
+  const el = $('#barraOferta');
+  if (!el) return;
+  if (!ofertaSel) { el.innerHTML = ''; return; }
+  for (const id of ofertaSel) { const p = buscar(id); if (!p || p.estado !== 'disponible') ofertaSel.delete(id); }
+  const visibles = (ps || prendasFiltradas()).filter(p => p.estado === 'disponible');
+  const todas = visibles.length && visibles.every(p => ofertaSel.has(p.id));
+  el.innerHTML = `<div class="barra-oferta" role="region" aria-label="Prendas elegidas para la oferta">
+    <p><b>${ofertaSel.size ? plural(ofertaSel.size, 'prenda elegida', 'prendas elegidas') : 'Toque las prendas que quiere poner en oferta'}</b></p>
+    <div class="bo-botones">
+      <button type="button" class="btn btn-sec" data-accion="sel-oferta-todas">${todas ? 'Quitar las que se ven' : `Elegir las que se ven (${visibles.length})`}</button>
+      <button type="button" class="btn btn-sec" data-accion="cancelar-ofertas">Cancelar</button>
+      <button type="button" class="btn btn-marca" data-accion="aplicar-ofertas" ${ofertaSel.size ? '' : 'disabled'}>Ponerles descuento</button>
+    </div></div>`;
+}
+function abrirDescuento(ids) {
+  const ps = ids.map(buscar).filter(p => p && p.estado === 'disponible');
+  if (!ps.length) return;
+  const actual = ps.every(p => (Number(p.descuento) || 0) === (Number(ps[0].descuento) || 0)) ? Number(ps[0].descuento) || 0 : 0;
+  const ctx = abrirHoja(`<h2>${ps.length === 1 ? `Oferta para ${esc(ps[0].descripcion)}` : `Oferta para ${ps.length} prendas`}</h2>
+    <p class="etq">¿Cuánto descuento?</p>
+    <div class="chips" id="chipsDescuento" role="group" aria-label="Descuento">${DESCUENTOS.map(d => `<button type="button" class="chip" data-accion="elegir-descuento" data-valor="${d}">${d} %</button>`).join('')}</div>
+    <div class="campo"><label for="dOtro">U otro porcentaje</label><input id="dOtro" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="2" placeholder="Ej: 35"></div>
+    <div id="vistaDescuento"></div>
+    <div class="botones-hoja">
+      <button type="button" class="btn btn-marca btn-enorme" data-accion="guardar-descuento">Poner en oferta</button>
+      ${ps.some(enOferta) ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="quitar-descuento">Quitar la oferta${ps.length > 1 ? ' a estas prendas' : ''}</button>` : ''}
+      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Volver</button>
+    </div>
+    <p class="nota mt">El precio de oferta se redondea a los ₡100. En la tienda y en el catálogo se ve el precio de antes tachado. Al vender, se cobra el de oferta.</p>`, null, 'Oferta');
+  ctx.ids = ps.map(p => p.id);
+  ctx.descuento = actual || 20;
+  pintarDescuento();
+}
+function pintarDescuento() {
+  const ctx = hojaCtx, cont = $('#vistaDescuento');
+  if (!ctx || !cont) return;
+  const d = ctx.descuento;
+  $$('#chipsDescuento .chip').forEach(c => c.setAttribute('aria-pressed', String(Number(c.dataset.valor) === d)));
+  const ps = ctx.ids.map(buscar).filter(Boolean);
+  const antes = suma(ps, p => p.precio), despues = suma(ps, p => precioOferta(p.precio, d));
+  cont.innerHTML = `<div class="ticket"><div class="fila"><span>Con ${d} % de descuento</span><strong>${col(despues)}</strong></div>
+      <p class="nota">Antes ${col(antes)}${ps.length > 1 ? ' entre todas' : ''}. Ganaría ${col(despues - suma(ps, costoDe))}.</p></div>
+    <ul class="lista-oferta">${ps.slice(0, 8).map(p => `<li><span>${esc(p.descripcion)}</span><span><s class="antes">${col(p.precio)}</s> <b class="oferta">${col(precioOferta(p.precio, d))}</b></span></li>`).join('')}</ul>
+    ${ps.length > 8 ? `<p class="nota">y ${ps.length - 8} más</p>` : ''}`;
+}
+async function guardarDescuento(btn, d) {
+  const ctx = hojaCtx;
+  if (!ctx || !ctx.ids) return;
+  if (!(d >= 0 && d <= 90)) { toast('El descuento tiene que ser de 1 a 90 %.', 'mal'); return; }
+  btn.disabled = true;
+  let n = 0;
+  for (const id of ctx.ids) {
+    const p = buscar(id);
+    if (!p || (Number(p.descuento) || 0) === d) continue;
+    if (!(await escribir(() => backend.actualizarPrenda(id, { descuento: d })))) { btn.disabled = false; return; }
+    n++;
+  }
+  const total = ctx.ids.length;
+  ofertaSel = null;
+  cerrarHoja();
+  if (vista === 'prendas') VISTAS.prendas.update();
+  toast(d ? `Listo: ${plural(total, 'prenda quedó', 'prendas quedaron')} con ${d} % de descuento.` : `Listo: ${plural(total, 'prenda ya no está', 'prendas ya no están')} en oferta.`, 'bien');
 }
 
 /* ================= COMPRAS ================= */
@@ -2888,7 +2987,7 @@ function abrirPrenda(id) {
   const c = compraPorId(p.compraId);
   const vendida = p.estado === 'vendida';
   const costo = costoDe(p);
-  const gan = vendida ? ganancia(p) : p.precio - costo;
+  const gan = vendida ? ganancia(p) : precioActual(p) - costo;
   let consejo = '';
   const apartado = p.estado === 'apartada' ? apartadoPorId(p.apartadoId) : null;
   if (p.estado === 'disponible') {
@@ -2904,7 +3003,7 @@ function abrirPrenda(id) {
     <p>${esc(detalleLinea(p))}</p>
     <dl class="cifras">
       <div><dt>Le costó</dt><dd>${col(costo)}</dd></div>
-      <div><dt>${vendida ? 'La vendió en' : 'Precio de etiqueta'}</dt><dd>${col(vendida ? p.precioVenta : p.precio)}</dd></div>
+      <div><dt>${vendida ? 'La vendió en' : enOferta(p) ? `En oferta (−${p.descuento} %)` : 'Precio de etiqueta'}</dt><dd>${vendida ? col(p.precioVenta) : htmlPrecioOferta(p)}</dd></div>
       <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
     ${apartado ? `<div class="aviso aviso-marca"><p>Está <b>apartada${esc(textoDeApartado(p))}</b>. No sale en el inventario ni en el catálogo.</p>
@@ -2916,6 +3015,7 @@ function abrirPrenda(id) {
         ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="deshacer-venta" data-id="${esc(p.id)}">Deshacer venta</button>`
         : p.estado === 'apartada' ? ''
         : `<button type="button" class="btn btn-gana btn-enorme" data-accion="vender-prenda" data-id="${esc(p.id)}">${ICON.etiqueta} Vender esta prenda</button>
+           <button type="button" class="btn btn-sec btn-enorme" data-accion="oferta-una" data-id="${esc(p.id)}">${ICON.etiqueta} ${enOferta(p) ? 'Cambiar o quitar la oferta' : 'Poner en oferta'}</button>
            <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-una" data-id="${esc(p.id)}">${ICON.impresora} Imprimir etiqueta</button>`}
       <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-prenda" data-id="${esc(p.id)}">Cambiar datos, costo o precio</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-prenda" data-id="${esc(p.id)}">Borrar prenda</button>
@@ -3305,7 +3405,7 @@ async function cargarRespaldo(file) {
     estado: p.estado === 'vendida' ? 'vendida' : p.estado === 'apartada' && idsAp.has(p.apartadoId) ? 'apartada' : 'disponible', creada: Number(p.creada) || Date.now(),
     apartadoId: idsAp.has(p.apartadoId) && p.estado !== 'disponible' ? p.apartadoId : null,
     descripcion: String(p.descripcion || p.tipo || 'Prenda'), tipo: String(p.tipo || 'Otro'), talla: String(p.talla || ''), color: String(p.color || ''), foto: String(p.foto || ''),
-    costoFijo: !!p.costoFijo, impresa: !!p.impresa, precioVenta: p.estado === 'vendida' ? num(p.precioVenta) : null, fechaVenta: p.estado === 'vendida' ? Number(p.fechaVenta) || Date.now() : null, ventaId: p.ventaId || null,
+    costoFijo: !!p.costoFijo, impresa: !!p.impresa, descuento: Math.min(90, num(p.descuento)), precioVenta: p.estado === 'vendida' ? num(p.precioVenta) : null, fechaVenta: p.estado === 'vendida' ? Number(p.fechaVenta) || Date.now() : null, ventaId: p.ventaId || null,
     clienteTel: p.estado === 'vendida' && tels.has(soloDigitos(p.clienteTel)) ? soloDigitos(p.clienteTel) : null,
   }));
   abrirHoja(`<h2>Cargar respaldo</h2>
@@ -3446,7 +3546,8 @@ const VISTAS = {
         </details>
         <div id="avisosPrendas"></div>
         <p class="nota" id="cuentaPrendas" aria-live="polite"></p>
-        <div id="listaPrendas"></div>`;
+        <div id="listaPrendas"></div>
+        <div id="barraOferta"></div>`;
       $('#qPrendas').addEventListener('input', e => { filtro.q = e.target.value; filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); });
       const rango = () => { filtro.pmin = num($('#fPmin').value); filtro.pmax = num($('#fPmax').value); filtro.mostrar = 60; pintarChipsTipo(); pintarFiltrosExtra(); pintarListaPrendas(); };
       $('#fPmin').addEventListener('input', rango); $('#fPmax').addEventListener('input', rango);
@@ -3460,10 +3561,13 @@ const VISTAS = {
       pintarFiltrosExtra();
       const pend = disponibles().filter(p => !p.impresa);
       const viejas = disponibles().filter(p => diasDesde(p.creada) >= 30);
+      const nOferta = disponibles().filter(enOferta).length;
       $('#avisosPrendas').innerHTML =
         (pend.length ? `<div class="aviso aviso-marca"><p>Tiene <b>${plural(pend.length, 'etiqueta', 'etiquetas')}</b> sin imprimir.</p>
           <button type="button" class="btn btn-marca" data-accion="imprimir-pendientes">${ICON.impresora} Imprimir etiquetas</button></div>` : '')
-        + (viejas.length || filtro.viejas ? `<div class="chips mt"><button type="button" class="chip" data-accion="alternar-viejas" aria-pressed="${filtro.viejas}">Solo las de más de 30 días (${viejas.length})</button></div>` : '');
+        + `<div class="chips mt">${ofertaSel ? '' : `<button type="button" class="chip" data-accion="elegir-ofertas">${ICON.etiqueta} Poner prendas en oferta</button>`}
+          ${nOferta || filtro.ofertas ? `<button type="button" class="chip" data-accion="alternar-ofertas" aria-pressed="${filtro.ofertas}">Solo en oferta (${nOferta})</button>` : ''}
+          ${viejas.length || filtro.viejas ? `<button type="button" class="chip" data-accion="alternar-viejas" aria-pressed="${filtro.viejas}">Solo las de más de 30 días (${viejas.length})</button>` : ''}</div>`;
       pintarListaPrendas();
     },
   },
@@ -3720,6 +3824,22 @@ document.addEventListener('click', async e => {
     case 'ver-viejas': Object.assign(filtro, { estado: 'disponible', viejas: true, tipo: '', origen: '', q: '', genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); ir('prendas'); break;
     case 'alternar-viejas': filtro.viejas = !filtro.viejas; if (filtro.viejas) filtro.estado = 'disponible'; filtro.mostrar = 60; VISTAS.prendas.update(); break;
     case 'ver-mas': filtro.mostrar += 60; pintarListaPrendas(); break;
+    // ofertas
+    case 'elegir-ofertas': ofertaSel = new Set(); Object.assign(filtro, { estado: 'disponible', mostrar: 60 }); VISTAS.prendas.update(); toast('Toque las prendas que quiere poner en oferta.'); break;
+    case 'cancelar-ofertas': ofertaSel = null; VISTAS.prendas.update(); break;
+    case 'sel-oferta': if (ofertaSel) { if (ofertaSel.has(id)) ofertaSel.delete(id); else ofertaSel.add(id); pintarListaPrendas(); } break;
+    case 'sel-oferta-todas': {
+      if (!ofertaSel) break;
+      const vis = prendasFiltradas().filter(p => p.estado === 'disponible');
+      if (vis.length && vis.every(p => ofertaSel.has(p.id))) vis.forEach(p => ofertaSel.delete(p.id)); else vis.forEach(p => ofertaSel.add(p.id));
+      pintarListaPrendas(); break;
+    }
+    case 'aplicar-ofertas': if (ofertaSel && ofertaSel.size) abrirDescuento([...ofertaSel]); break;
+    case 'oferta-una': abrirDescuento([id]); break;
+    case 'elegir-descuento': if (hojaCtx) { hojaCtx.descuento = Number(valor); const o = $('#dOtro'); if (o) o.value = ''; pintarDescuento(); } break;
+    case 'guardar-descuento': if (hojaCtx) guardarDescuento(el, hojaCtx.descuento); break;
+    case 'quitar-descuento': guardarDescuento(el, 0); break;
+    case 'alternar-ofertas': filtro.ofertas = !filtro.ofertas; if (filtro.ofertas) filtro.estado = 'disponible'; filtro.mostrar = 60; VISTAS.prendas.update(); break;
     // hoy
     case 'periodo-modo': periodo.modo = valor; periodo.offset = 0; repintarPeriodo(); break;
     case 'periodo-mover': periodo.offset = Math.min(0, periodo.offset + Number(valor)); repintarPeriodo(); break;
@@ -3738,6 +3858,7 @@ document.addEventListener('input', e => {
   if (t.id === 'qCliente') pintarListaClientes();
   else if (t.id === 'qClientes') { filtroClientes.q = t.value; pintarVistaClientes(); }
   else if (t.id === 'qApartados') { filtroApartados.q = t.value; pintarVistaApartados(); }
+  else if (t.id === 'dOtro' && hojaCtx && hojaCtx.ids) { const d = Math.min(90, num(t.value)); if (d > 0) { hojaCtx.descuento = d; pintarDescuento(); } }
   else if (t.id === 'fPrecio' && it) { it.precio = num(t.value); it.tocado.add('precio'); pintarPrecioItem(); }
   else if (t.id === 'fCostoItem' && it) { it.costoManual = num(t.value); pintarPrecioItem(); }
   else if (t.id === 'fTallaOtra' && it) { it.talla = t.value.trim(); it.tocado.add('talla'); $$('#tallaOpciones .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.valor === it.talla))); programarVista(); }

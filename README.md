@@ -14,6 +14,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `supabase/migrations/…_clientes.sql` | Clientes (nombre y teléfono; el teléfono es la llave), el cliente de cada venta y permisos para borrar. |
 | `supabase/migrations/…_catalogo.sql` | WhatsApp de la tienda y las dos funciones públicas que usa el catálogo. |
 | `supabase/migrations/…_apartados.sql` | Apartados y sus abonos, prendas apartadas y la función pública `pedido_ver` del enlace del cliente. |
+| `supabase/migrations/…_ofertas.sql` | Descuento (porcentaje) de cada prenda y el catálogo con el precio de oferta. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
@@ -114,3 +115,8 @@ Para hacer un pedido: en **Vender** escanee las prendas, elija la clienta y toqu
 En **Pedidos** están todos, con lo que ha pagado cada clienta. En cada pedido puede registrar abonos (monto y fecha), quitar prendas, cambiar el precio, imprimir la **etiqueta del pedido** (nombre y teléfono de la clienta, número de pedido y cuántas prendas) y mandarle por WhatsApp cuánto lleva con el enlace a su pedido (`…/pedido.html?c=…`, solo en la versión con Supabase).
 
 Al escanear la etiqueta del pedido (código `P0012`) se abre el pedido. Cuando la clienta llega al porcentaje de **Ajustes** (50 % al inicio), la tienda avisa que ya se puede entregar. Al **entregar**, las prendas pasan a vendidas y el precio del pedido se reparte entre ellas; si todavía debe algo, se siguen anotando sus abonos. Al **cancelar**, las prendas vuelven a la tienda.
+
+## Ofertas
+En **Prendas** toque **Poner prendas en oferta**, toque las prendas (o **Elegir las que se ven**, después de filtrar) y luego **Ponerles descuento**: 10, 15, 20, 25, 30, 40, 50 % u otro. También se puede desde cada prenda con **Poner en oferta**.
+
+El precio de oferta se redondea a los ₡100. En la tienda y en el catálogo se ve el precio de antes tachado, el de oferta y el porcentaje; el catálogo tiene el botón **Ofertas**. Al vender o hacer un pedido se cobra el de oferta. Para terminar la oferta: **Cambiar o quitar la oferta**. La etiqueta impresa sigue con el precio normal.
