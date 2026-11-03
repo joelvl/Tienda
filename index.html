@@ -371,8 +371,9 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 .cab-botones{display:flex;gap:2px;align-items:center}
 @media (max-width:400px){.btn-ajustes span{display:none}}
 /* Ojito: oculta ganancias y costos cuando hay clientes al frente */
-body.sin-ganancias .priv{filter:blur(9px);user-select:none;pointer-events:none}
-body.sin-ganancias .priv-todo{display:none!important}
+/* Se quita todo: el monto y también lo que dice «Ganó», «Le costó», etc. */
+body.sin-ganancias :is(.priv,.priv-todo,.dias){display:none!important}
+body.sin-ganancias :is(.fila,.cifras>div,.periodo-totales>div,.mini-cifras>span,.campo):has(.priv){display:none!important}
 #btnOjito[aria-pressed="true"]{background:var(--marca-suave);color:var(--marca)}
 .btn-texto{appearance:none;border:0;background:none;color:var(--marca);font:inherit;font-weight:700;font-size:17px;min-height:44px;padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .girando.chica{width:16px;height:16px;border-width:2px;vertical-align:-3px;margin-right:6px}
@@ -1227,7 +1228,7 @@ function htmlHoy() {
       <div class="ticket" role="group" aria-label="Resumen de hoy">
         <div class="fila"><span>Vendió hoy</span><strong>${col(suma(vHoy, p => p.precioVenta))}</strong></div>
         <p class="sub">${vHoy.length ? plural(vHoy.length, 'prenda vendida', 'prendas vendidas') : 'Todavía no hay ventas hoy'}</p>
-        <hr>
+        <hr class="priv-todo">
         <div class="fila"><span>Ganó hoy</span><strong class="priv ${gHoy >= 0 ? 'verde' : 'rojo'}">${col(gHoy)}</strong></div>
       </div>
       <div class="acciones">
@@ -1240,8 +1241,8 @@ function htmlHoy() {
       ${viejas.length ? `<div class="aviso"><p><b>${plural(viejas.length, 'prenda lleva', 'prendas llevan')} más de 30 días</b> en la tienda. Rebajarlas un poco puede ayudar a que se vendan.</p>
         <button type="button" class="btn btn-sec" data-accion="ver-viejas">Ver esas prendas</button></div>` : ''}
     </div><div class="col-b">
-      <h2>Lo que ha ganado</h2>
-      <div id="periodoGanancia">${htmlPeriodoGanancia()}</div>
+      <h2 class="priv-todo">Lo que ha ganado</h2>
+      <div id="periodoGanancia" class="priv-todo">${htmlPeriodoGanancia()}</div>
       ${htmlAvisoMejorTienda()}
       ${S.compras.length ? `<h2>Sus compras</h2>${S.compras.slice(0, 3).map(htmlCompraFila).join('')}
         ${S.compras.length > 3 ? `<button type="button" class="btn btn-sec" data-ir="compras">Ver todas las compras</button>` : ''}` : ''}
@@ -2363,9 +2364,9 @@ function htmlResumenCompras() {
   const bal = vendido - invertido;
   const disp = disponibles();
   return `<div class="ticket" role="group" aria-label="Su cuenta">
-    <div class="fila"><span>Ha invertido</span><strong class="med">${col(invertido)}</strong></div>
+    <div class="fila"><span>Ha invertido</span><strong class="med priv">${col(invertido)}</strong></div>
     <div class="fila"><span>Ha vendido</span><strong class="med">${col(vendido)}</strong></div>
-    <hr>
+    <hr class="priv-todo">
     <div class="fila"><span>${bal >= 0 ? 'Va ganando' : 'Le falta recuperar'}</span><strong class="priv ${bal >= 0 ? 'verde' : ''}">${col(Math.abs(bal))}</strong></div>
     <p class="sub">Tiene ${plural(disp.length, 'prenda', 'prendas')} en la tienda que valen ${col(suma(disp, p => p.precio))} a precio de etiqueta.</p>
   </div>`;
