@@ -50,6 +50,19 @@ jobs:
       - name: Publicar la función de reconocimiento
         run: supabase functions deploy clasificar --project-ref "$PROJECT_REF" --yes
 
+      - name: Guardar la clave del conector de Claude
+        env:
+          MCP_CLAVE: ${{ secrets.MCP_CLAVE }}
+        run: |
+          if [ -n "$MCP_CLAVE" ]; then
+            supabase secrets set MCP_CLAVE="$MCP_CLAVE" --project-ref "$PROJECT_REF" --yes
+          else
+            echo "::warning::Sin MCP_CLAVE: el conector de Claude no responde hasta que se ponga ese secreto en GitHub."
+          fi
+
+      - name: Publicar el conector de Claude (MCP, solo lectura)
+        run: supabase functions deploy mcp --project-ref "$PROJECT_REF" --yes   # verify_jwt = false en supabase/config.toml
+
   pagina:
     name: Página web (GitHub Pages)
     needs: base-de-datos

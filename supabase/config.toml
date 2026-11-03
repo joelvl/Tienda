@@ -5,3 +5,8 @@ project_id = "mi-tienda"
 # Supabase revisa que la llamada traiga una sesión válida;
 # la función además exige que sea un usuario con sesión iniciada.
 verify_jwt = true
+
+[functions.mcp]
+# Conector de Claude: claude.ai no manda sesión de Supabase. La función exige
+# la clave secreta MCP_CLAVE al final de la dirección, y solo lee.
+verify_jwt = false
