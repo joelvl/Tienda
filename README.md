@@ -9,6 +9,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
 | `catalogo.html` | Catálogo para los clientes: solo las prendas a la venta (foto, talla, color, precio), sin costos ni ganancias. |
 | `conectar.html` | Donde se entra con el usuario de la tienda al conectar Claude (conector MCP). |
+| `ayuda.html` | Índice de los videos de ayuda (celular o tableta). |
 | `pedido.html` | Lo que ve el cliente con el enlace de su pedido: sus prendas, sus abonos y cuánto le falta. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
@@ -143,4 +144,4 @@ Cada foto se guarda en dos tamaños: una miniatura liviana dentro de la prenda (
 En el detalle de cada prenda: **Cambiar la foto** (tomar una nueva o elegir de la galería), **Girar** y **Quitar la foto**.
 
 ## Videos de ayuda
-En `publico/videos/celular/` y `publico/videos/tableta/` hay un video corto por cada parte de la tienda (con voz y letreros). Se publican con la página en `…/videos/celular/01-la-pantalla-de-inicio.mp4`, etc.
+En `publico/videos/celular/` y `publico/videos/tableta/` hay un video corto por cada parte de la tienda (con voz y letreros). Se publican con la página en `…/videos/celular/01-la-pantalla-de-inicio.mp4`, etc. El índice está en `ayuda.html` y se abre desde la tienda: en **Hoy** («¿Tiene dudas? Vea los videos de ayuda») y en **Ajustes** («Videos de ayuda»).

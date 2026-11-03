@@ -270,6 +270,7 @@ th{font-size:15px;color:var(--tinta-suave)}
 .venta-cliente ul{margin:0;padding-left:20px}
 .tels-contacto{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .detalle-foto{display:block;width:100%;max-height:300px;object-fit:contain;border-radius:14px;background:var(--superficie-2);margin-bottom:12px}
+.ayuda-hoy{width:100%}
 .foto-acciones{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .foto-acciones .btn{flex:1 1 140px;min-height:48px;font-size:16px}
 .fotos-elegir{display:grid;gap:10px}
@@ -649,6 +650,7 @@ const ICON = {
   ojo: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   ojoNo: svg('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
   girar: svg('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
+  ayuda: svg('<circle cx="12" cy="12" r="9.5"/><path d="M10 9.5l5 2.5-5 2.5z"/>'),
   reloj: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   whatsapp: svg('<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-1.5-1-2-2l1-1-1-2z"/>'),
 };
@@ -1251,6 +1253,7 @@ function htmlHoy() {
       ${htmlAvisoCompraAbierta()}
       ${viejas.length ? `<div class="aviso"><p><b>${plural(viejas.length, 'prenda lleva', 'prendas llevan')} más de 30 días</b> en la tienda. Rebajarlas un poco puede ayudar a que se vendan.</p>
         <button type="button" class="btn btn-sec" data-accion="ver-viejas">Ver esas prendas</button></div>` : ''}
+      <a class="btn btn-sec mt ayuda-hoy" href="ayuda.html">${ICON.ayuda} ¿Tiene dudas? Vea los videos de ayuda</a>
     </div><div class="col-b">
       <h2 class="priv-todo">Lo que ha ganado</h2>
       <div id="periodoGanancia" class="priv-todo">${htmlPeriodoGanancia()}</div>
@@ -1357,7 +1360,8 @@ function htmlBienvenida(saludo) {
       <li><span><b>Ponga la talla y el precio</b> de cada prenda, una por una, e imprima las etiquetas.</span></li>
       <li><span><b>Cuando venda, escanee las etiquetas</b> con la cámara. La tienda le dice cuánto ganó.</span></li>
     </ol>
-    <button type="button" class="btn btn-marca btn-enorme" data-accion="nueva-compra">Registrar mi primera compra</button>`;
+    <button type="button" class="btn btn-marca btn-enorme" data-accion="nueva-compra">Registrar mi primera compra</button>
+    <a class="btn btn-sec mt ayuda-hoy" href="ayuda.html">${ICON.ayuda} Ver los videos de ayuda</a>`;
 }
 
 /* ================= AGREGAR: VARIAS FOTOS, UNA POR UNA ================= */
@@ -3523,6 +3527,7 @@ function abrirAjustes() {
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-ajustes">Guardar ajustes</button>
       <button type="button" class="btn btn-sec btn-enorme" data-ir="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
+      <a class="btn btn-sec btn-enorme" href="ayuda.html">${ICON.ayuda} Videos de ayuda</a>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-prueba">${ICON.impresora} Imprimir etiqueta de prueba</button>
       ${puedeDescargar() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="exportar">Descargar mis datos para Excel</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="respaldo">Descargar respaldo completo</button>` : ''}
