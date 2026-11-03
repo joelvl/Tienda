@@ -2659,15 +2659,15 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
   let altoBarras = H - fijo, extra = 0;
   if (altoBarras > 10 * u) { extra = (altoBarras - 10 * u) / 4; altoBarras = 10 * u; }
 
-  // Franja negra con el nombre de la tienda
+  // Nombre de la tienda con una línea fina debajo (sin negro sólido: las térmicas pequeñas lo imprimen gris o rayado)
   let y = 1.2 * u;
-  g.fillStyle = '#000'; caja(m, y, ancho, hBanda, 0.9 * u); g.fill();
-  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle';
   const nombre = (S.config.nombre || 'Mi tienda').toUpperCase();
-  espaciado(0.3 * u);
-  ajustar(nombre, 700, 3 * u, 2 * u, ancho - 2.5 * u);
-  g.fillText(recortar(g, nombre, ancho - 2.5 * u), W / 2, y + hBanda / 2 + 0.15 * u);
+  espaciado(0.35 * u);
+  ajustar(nombre, 700, 3.4 * u, 2 * u, ancho);
+  g.fillText(recortar(g, nombre, ancho), W / 2, y + hBanda / 2 - 0.2 * u);
   espaciado(0);
+  g.fillRect(m, Math.round(y + hBanda - 0.3 * u), ancho, Math.max(2, Math.round(0.3 * u)));
   y += hBanda + 0.9 * u + extra;
 
   // Nombre de la prenda
