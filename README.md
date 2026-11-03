@@ -8,6 +8,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 |---|---|
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
 | `catalogo.html` | Catálogo para los clientes: solo las prendas a la venta (foto, talla, color, precio), sin costos ni ganancias. |
+| `conectar.html` | Donde se entra con el usuario de la tienda al conectar Claude (conector MCP). |
 | `pedido.html` | Lo que ve el cliente con el enlace de su pedido: sus prendas, sus abonos y cuánto le falta. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
@@ -17,7 +18,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `supabase/migrations/…_ofertas.sql` | Descuento (porcentaje) de cada prenda y el catálogo con el precio de oferta. |
 | `supabase/migrations/…_pedido_retiros.sql` | El enlace del cliente muestra qué prendas del pedido ya se llevó. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
-| `supabase/functions/mcp/` | Conector de Claude (servidor MCP de solo lectura) para preguntarle a Claude por las ventas, prendas, pedidos y clientes. |
+| `supabase/functions/mcp/` | Conector de Claude (servidor MCP) para preguntarle a Claude por las ventas, prendas, pedidos y clientes, y corregir datos de prendas. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
 | `scripts/crear-usuario.mjs` | Opcional: crea usuarios desde la terminal. |
@@ -126,10 +127,11 @@ En **Prendas** toque **Poner prendas en oferta**, toque las prendas (o **Elegir 
 El precio de oferta se redondea a los ₡100. En la tienda y en el catálogo se ve el precio de antes tachado, el de oferta y el porcentaje; el catálogo tiene el botón **Ofertas**. Al vender o hacer un pedido se cobra el de oferta. Para terminar la oferta: **Cambiar o quitar la oferta**. La etiqueta impresa sigue con el precio normal.
 
 ## Preguntarle a Claude por la tienda (conector MCP)
-Desde claude.ai (o la app de Claude en el celular) se le puede preguntar, por ejemplo: «¿cuánto vendí esta semana y cuánto gané?», «¿quién me debe en pedidos?», «¿qué vestidos talla M tengo?», «¿de cuál tienda me conviene comprar?». El conector **solo lee**: no puede vender, borrar ni cambiar nada.
+Desde claude.ai (o la app de Claude en el celular) se le puede preguntar, por ejemplo: «¿cuánto vendí esta semana y cuánto gané?», «¿quién me debe en pedidos?», «¿qué vestidos talla M tengo?», «¿de cuál tienda me conviene comprar?». El conector también puede **corregir prendas mal registradas** (nombre, tipo, talla, color, para quién y precio de etiqueta) y **ver sus fotos** para revisar si cuadran; Claude pregunta antes de cambiar algo. No puede vender, borrar ni tocar pedidos o abonos. Si cambia el nombre, la talla o el precio, la etiqueta queda como «sin imprimir» para reimprimirla.
 
 Una sola vez:
-1. Cree una clave larga al azar (en la Terminal: `openssl rand -hex 24`) y guárdela en GitHub → Settings → Secrets and variables → Actions como **`MCP_CLAVE`**. Al subir el siguiente cambio a `main`, GitHub Actions la pasa a Supabase y publica el conector.
-2. En claude.ai → Ajustes → Conectores → **Agregar conector personalizado**: nombre «Mi tienda» y la dirección `https://<proyecto>.supabase.co/functions/v1/mcp/<MCP_CLAVE>`.
+1. En GitHub → Settings → Secrets and variables → Actions debe estar **`MCP_CLAVE`** (una clave larga al azar, por ejemplo de `openssl rand -hex 24`). Con ella se firman los permisos; nadie la tiene que escribir.
+2. En claude.ai → Ajustes → Conectores → **Agregar conector personalizado**: nombre «Mi tienda» y la dirección `https://<proyecto>.supabase.co/functions/v1/mcp` (sin nada más al final).
+3. Al conectarlo, Claude abre `conectar.html`: se entra con el **mismo usuario y contraseña de la tienda**. Claude recibe un permiso que dura una hora y se renueva solo.
 
-Quien tenga esa dirección puede ver los datos de la tienda: no la comparta. Si se filtra, cambie `MCP_CLAVE` en GitHub, vuelva a desplegar y actualice la dirección en Claude.
+Si borra o bloquea un usuario en Supabase, ese Claude pierde el acceso en menos de una hora. Si cambia `MCP_CLAVE`, todos tienen que volver a conectar.
