@@ -678,7 +678,8 @@ let hojaCtx = null;
 let focoPrevio = null;
 let ultimoCodigoLocal = 0;
 const filtro = { estado: 'disponible', q: '', tipo: '', origen: '', viejas: false, ofertas: false, genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 };
-let ofertaSel = null;   // prendas elegidas para ponerlas en oferta (Set de ids), o null si no se está eligiendo
+let ofertaSel = null;
+let modoPedido = false;   // Vender abierto desde «Pedido nuevo»: el botón principal hace el pedido, no la venta   // prendas elegidas para ponerlas en oferta (Set de ids), o null si no se está eligiendo
 let pestanaCompras = 'compras';
 const cola = { items: [], i: 0, compraId: null, guardadas: [], cargando: 0 };
 const periodo = { modo: 'semana', offset: 0 };
@@ -1156,6 +1157,7 @@ const TABS = [
 ];
 function ir(v) {
   if (v !== 'prendas') ofertaSel = null;
+  if (v !== 'vender') modoPedido = false;
   vista = v;
   $$('.tab').forEach(t => t.setAttribute('aria-current', t.dataset.ir === v ? 'page' : 'false'));
   const el = $('#vista');
@@ -1818,7 +1820,25 @@ function pintarCarrito(forzar) {
   if (!forzar && firma === firmaCarrito && items.length) { pintarTotalesCarrito(); return; }
   firmaCarrito = firma;
   if (!items.length) {
-    cont.innerHTML = `<div class="vacio mt"><p><b>Venta nueva</b></p><p>Escanee o busque las prendas que se lleva la clienta. Se van sumando aquí y al final guarda la venta.</p></div>`;
+    cont.innerHTML = modoPedido
+      ? `<div class="vacio mt"><p><b>Pedido nuevo</b></p><p>Escanee o busque las prendas que la clienta quiere apartar. Se van sumando aquí y al final hace el pedido.</p></div>`
+      : `<div class="vacio mt"><p><b>Venta nueva</b></p><p>Escanee o busque las prendas que se lleva la clienta. Se van sumando aquí y al final guarda la venta.</p></div>`;
+    return;
+  }
+  const cli = clientePorTel(clienteVenta);
+  if (modoPedido) {
+    cont.innerHTML = `<h2>Prendas del pedido (${items.length})</h2>
+      ${items.map(htmlFilaCarrito).join('')}
+      <div class="ticket total-venta" role="group" aria-label="Total del pedido">
+        <div class="fila"><span>Suman</span><strong id="totalCobrar"></strong></div>
+        <p class="sub">El precio del pedido y el primer abono los pone en el siguiente paso.</p>
+      </div>
+      <div class="campo mt">${htmlSelector('Clienta del pedido', cli ? cli.nombre : 'Toque para elegir la clienta', cli ? 'Tel. ' + telBonito(cli.telefono) : '', 'elegir-cliente')}</div>
+      <div class="carrito-botones">
+        <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
+        <button type="button" class="btn btn-marca btn-enorme" data-accion="apartar">${ICON.reloj} Hacer el pedido</button>
+      </div>`;
+    pintarTotalesCarrito();
     return;
   }
   cont.innerHTML = `<h2>Venta actual (${plural(items.length, 'prenda', 'prendas')})</h2>
@@ -1828,7 +1848,7 @@ function pintarCarrito(forzar) {
       <hr>
       <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div>
     </div>
-    <div class="campo mt">${(() => { const x = clientePorTel(clienteVenta); return htmlSelector('Cliente', x ? x.nombre : 'Sin cliente (toque para elegir)', x ? 'Tel. ' + telBonito(x.telefono) : '', 'elegir-cliente'); })()}</div>
+    <div class="campo mt">${htmlSelector('Cliente', cli ? cli.nombre : 'Sin cliente (toque para elegir)', cli ? 'Tel. ' + telBonito(cli.telefono) : '', 'elegir-cliente')}</div>
     <div class="carrito-botones">
       <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-venta">Guardar venta</button>
@@ -1944,7 +1964,7 @@ function pintarEscaner(msg, estado) {
   const m = $('#escMarco');
   m.classList.remove('ok', 'mal');
   if (estado) { m.classList.add(estado); setTimeout(() => m.classList.remove(estado), 900); }
-  $('#escCuenta').textContent = ESCN.modo === 'pedido' ? '' : `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en esta venta`;
+  $('#escCuenta').textContent = ESCN.modo === 'pedido' ? '' : `${plural(ESCN.cuenta, 'prenda escaneada', 'prendas escaneadas')} en ${modoPedido ? 'este pedido' : 'esta venta'}`;
 }
 function pitar(ok) {
   try { if (navigator.vibrate) navigator.vibrate(ok ? 70 : [60, 60, 60]); } catch (e) { /* opcional */ }
@@ -1990,7 +2010,7 @@ function manejarCodigo(texto) {
 async function abrirEscaner(modo = 'venta') {
   ESCN.cuenta = 0; ESCN.ultimo = ''; ESCN.modo = modo;
   $('#escTitulo').textContent = modo === 'pedido' ? 'Escanear pedido' : 'Escanear prendas';
-  $('#escListo').textContent = modo === 'pedido' ? 'Cerrar' : 'Listo, ver la venta';
+  $('#escListo').textContent = modo === 'pedido' ? 'Cerrar' : modoPedido ? 'Listo, ver el pedido' : 'Listo, ver la venta';
   const ov = $('#escaner');
   ov.hidden = false;
   document.body.classList.add('con-hoja');
@@ -2700,7 +2720,7 @@ function abrirApartar() {
     <div class="campo"><label for="apAbono">Lo que le dio hoy (primer abono)</label>${htmlStepper('apAbono', 0, '', 500)}<p class="nota mt">Déjelo vacío si todavía no le ha dado nada.</p></div>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-apartado">${ICON.reloj} Guardar pedido</button>
-      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Volver a la venta</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-cerrar>${modoPedido ? 'Volver' : 'Volver a la venta'}</button>
     </div>`, null, 'Pedido nuevo');
 }
 async function guardarApartado(btn) {
@@ -2720,7 +2740,8 @@ async function guardarApartado(btn) {
   }
   if (abono > 0) await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto: abono, fecha: t, nota: '' }));
   clienteVenta = ''; guardarCarritoLocal();
-  pintarCarrito(true);
+  modoPedido = false;
+  ir('apartados');
   toast(`Pedido #${a.numero} guardado para ${cli.nombre}.`, 'bien');
   abrirApartado(a.id);
 }
@@ -2896,7 +2917,7 @@ function pintarVistaApartados() {
     b.setAttribute('aria-pressed', String(b.dataset.valor === filtroApartados.ver));
   });
   if (!todos.length) {
-    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno: en <b>Vender</b> escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».</p></div>`;
+    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno, toque <b>Pedido nuevo</b>, pase las prendas, elija la clienta y toque «Hacer el pedido».</p></div>`;
     return;
   }
   const lista = (filtroApartados.ver === 'activos' ? activos : todos.filter(x => !apartadoActivo(x.a, x.st)))
@@ -3500,7 +3521,9 @@ const VISTAS = {
   },
   vender: {
     mount(el) {
-      el.innerHTML = `<h1>Vender</h1>
+      el.innerHTML = `<h1>${modoPedido ? 'Pedido nuevo' : 'Vender'}</h1>
+        ${modoPedido ? `<div class="aviso aviso-marca"><p><b>Está haciendo un pedido.</b> Pase las prendas que la clienta aparta, elija la clienta y toque «Hacer el pedido».</p>
+          <button type="button" class="btn btn-sec" data-accion="modo-venta">No, es una venta normal</button></div>` : ''}
         <div class="vender-grid"><div>
           <div class="escanear-zona">
             <button type="button" class="btn btn-marca btn-gigante" data-accion="escanear">${ICON.escaner}<span>Escanear prendas con la cámara</span></button>
@@ -3751,7 +3774,8 @@ document.addEventListener('click', async e => {
     // apartados
     case 'apartar': abrirApartar(); break;
     case 'guardar-apartado': guardarApartado(el); break;
-    case 'apartado-nuevo': ir('vender'); toast('Escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».'); break;
+    case 'apartado-nuevo': modoPedido = true; ir('vender'); break;
+    case 'modo-venta': modoPedido = false; ir('vender'); break;
     case 'escanear-pedido': abrirEscaner('pedido'); break;
     case 'ver-apartados': filtroApartados.ver = valor; pintarVistaApartados(); break;
     case 'ver-apartado': abrirApartado(id); break;
