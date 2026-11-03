@@ -2709,16 +2709,10 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
     g.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(y));
   }
 
-  // Abajo: el código y el WhatsApp de la tienda
+  // Abajo: el código de la prenda
   const yPie = H - 1.3 * u;
-  const cod = String(p.codigo), tel = S.config.whatsapp ? 'WhatsApp ' + telBonito(S.config.whatsapp) : '';
-  if (tel) {
-    let s = sPie;
-    g.font = `700 ${s}px ${fam}`;
-    while (g.measureText(cod).width + 2 * u + g.measureText(tel).width > ancho && s > 1.7 * u) { s -= 0.1 * u; g.font = `700 ${s}px ${fam}`; }
-    g.fillText(cod, m, yPie);
-    g.textAlign = 'right'; g.fillText(recortar(g, tel, ancho - g.measureText(cod).width - 2 * u), W - m, yPie);
-  } else { g.font = `700 ${sPie}px ${fam}`; g.textAlign = 'center'; g.fillText(cod, W / 2, yPie); }
+  g.font = `700 ${sPie}px ${fam}`; g.textAlign = 'center';
+  g.fillText(String(p.codigo), W / 2, yPie);
   g.textAlign = 'left';
   return c;
 }
@@ -2781,8 +2775,8 @@ const BT_SERVICIOS = [
 ];
 const BT_PUNTOS_MM = 8;          // 203 dpi
 const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
-// En la HL2200 lo impreso cae unos 3 mm a la derecha y 2 mm más abajo del borde de la etiqueta: se deja ese margen
-const BT_CORRIDO_X = 3, BT_CORRIDO_Y = 2.5;
+// En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
+const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
 const BT = { disp: null, car: null, trozo: 180 };
 const hayBluetooth = () => !!navigator.bluetooth;
 
@@ -2863,7 +2857,7 @@ function abrirAjustes() {
     <div class="campo"><label for="aIa">Reconocimiento de fotos</label><select id="aIa">
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
-    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">Sale en cada etiqueta, y en el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
+    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">En el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
