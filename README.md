@@ -18,7 +18,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 | `supabase/migrations/…_ofertas.sql` | Descuento (porcentaje) de cada prenda y el catálogo con el precio de oferta. |
 | `supabase/migrations/…_pedido_retiros.sql` | El enlace del cliente muestra qué prendas del pedido ya se llevó. |
 | `supabase/functions/clasificar/` | Reconoce la prenda de la foto con Claude: tipo y color con su probabilidad, nombre y precio sugerido. |
-| `supabase/functions/mcp/` | Conector de Claude (servidor MCP de solo lectura) para preguntarle a Claude por las ventas, prendas, pedidos y clientes. |
+| `supabase/functions/mcp/` | Conector de Claude (servidor MCP) para preguntarle a Claude por las ventas, prendas, pedidos y clientes, y corregir datos de prendas. |
 | `.github/workflows/desplegar.yml` | En cada cambio a `main`: actualiza la base de datos, publica la función de IA y publica la página. |
 | `scripts/preparar-sitio.mjs` | Lo usa GitHub Actions para insertar la configuración de Supabase en la página. |
 | `scripts/crear-usuario.mjs` | Opcional: crea usuarios desde la terminal. |
@@ -127,7 +127,7 @@ En **Prendas** toque **Poner prendas en oferta**, toque las prendas (o **Elegir 
 El precio de oferta se redondea a los ₡100. En la tienda y en el catálogo se ve el precio de antes tachado, el de oferta y el porcentaje; el catálogo tiene el botón **Ofertas**. Al vender o hacer un pedido se cobra el de oferta. Para terminar la oferta: **Cambiar o quitar la oferta**. La etiqueta impresa sigue con el precio normal.
 
 ## Preguntarle a Claude por la tienda (conector MCP)
-Desde claude.ai (o la app de Claude en el celular) se le puede preguntar, por ejemplo: «¿cuánto vendí esta semana y cuánto gané?», «¿quién me debe en pedidos?», «¿qué vestidos talla M tengo?», «¿de cuál tienda me conviene comprar?». El conector **solo lee**: no puede vender, borrar ni cambiar nada.
+Desde claude.ai (o la app de Claude en el celular) se le puede preguntar, por ejemplo: «¿cuánto vendí esta semana y cuánto gané?», «¿quién me debe en pedidos?», «¿qué vestidos talla M tengo?», «¿de cuál tienda me conviene comprar?». El conector también puede **corregir prendas mal registradas** (nombre, tipo, talla, color, para quién y precio de etiqueta) y **ver sus fotos** para revisar si cuadran; Claude pregunta antes de cambiar algo. No puede vender, borrar ni tocar pedidos o abonos. Si cambia el nombre, la talla o el precio, la etiqueta queda como «sin imprimir» para reimprimirla.
 
 Una sola vez:
 1. En GitHub → Settings → Secrets and variables → Actions debe estar **`MCP_CLAVE`** (una clave larga al azar, por ejemplo de `openssl rand -hex 24`). Con ella se firman los permisos; nadie la tiene que escribir.

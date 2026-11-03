@@ -1,4 +1,4 @@
-// Consultas de la tienda para el conector de Claude (MCP). Solo lee: no cambia nada.
+// Consultas de la tienda para el conector de Claude (MCP), y la revisión de las correcciones de prendas (lo único que puede cambiar).
 // Hace las mismas cuentas que la app (costo de cada prenda, ganancia, pedidos y abonos).
 
 const DIA = 86400000;
@@ -237,12 +237,96 @@ export const HERRAMIENTAS: Herramienta[] = [
   },
 ];
 
-export const INSTRUCCIONES = "Conector de solo lectura de la tienda de ropa. Los montos son colones (₡). " +
+// ---------- corregir prendas (lo único que el conector puede cambiar) ----------
+export const TIPOS = ["Blusa", "Camisa", "Camiseta", "Vestido", "Enterizo", "Conjunto", "Pantalón", "Enagua", "Short", "Saco", "Suéter", "Zapatos", "Bisutería", "Bolso", "Otro"];
+export const COLORES = ["Negro", "Blanco", "Gris", "Beige", "Café", "Rojo", "Rosado", "Fucsia", "Morado", "Lila", "Azul", "Celeste", "Verde", "Amarillo", "Naranja", "Dorado", "Plateado", "Estampado"];
+const GENEROS = ["Mujer", "Hombre", "Unisex"];
+const deLista = (lista: string[], v: unknown) => lista.find((x) => normal(x) === normal(v));
+const codigoDe = (v: unknown) => { const t = String(v ?? "").trim(); return /^\d{1,6}$/.test(t) ? t.padStart(6, "0") : t; };
+// Precio sugerido igual que la app: el costo por el factor de Ajustes, terminando en 900
+const a900 = (n: number) => n <= 900 ? 900 : Math.ceil((n + 100) / 1000) * 1000 - 100;
+
+export const HERRAMIENTAS_ESPECIALES = [
+  {
+    name: "ver_fotos",
+    description: "Muestra la foto de hasta 6 prendas (por código) junto con sus datos, para revisar si el nombre, el tipo, la talla, el color o el precio cuadran con lo que se ve en la foto.",
+    inputSchema: { type: "object", properties: { codigos: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6, description: "Códigos de las prendas, por ejemplo [\"000123\"]" } }, required: ["codigos"] },
+    annotations: LECTURA,
+  },
+  {
+    name: "corregir_prendas",
+    description: "Corrige datos de prendas que se registraron mal: nombre, tipo, talla, color, para quién o precio de etiqueta. No vende, no borra y no toca pedidos ni abonos. " +
+      "ANTES de usarla, dígale a la dueña exactamente qué va a cambiar en cada prenda (antes → después) y espere a que diga que sí. " +
+      "Si cambia el nombre, la talla o el precio de una prenda en tienda, su etiqueta queda como «sin imprimir» para reimprimirla.",
+    inputSchema: {
+      type: "object", required: ["cambios"],
+      properties: {
+        cambios: {
+          type: "array", minItems: 1, maxItems: 30,
+          items: {
+            type: "object", required: ["codigo"],
+            properties: {
+              codigo: { type: "string", description: "Código de la prenda" },
+              descripcion: { type: "string", description: "Nombre que sale en la etiqueta (máximo 50 letras)" },
+              tipo: { type: "string", enum: TIPOS },
+              talla: { type: "string", description: "Talla (XS, S, M, L, XL, XXL, Única, números como 8 o 38…). Vacío si no lleva." },
+              color: { type: "string", enum: COLORES },
+              para: { type: "string", enum: GENEROS },
+              precio: { type: "number", description: "Precio de etiqueta en colones (normalmente termina en 900)" },
+            },
+          },
+        },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+];
+
+// Revisa y arma los cambios de corregir_prendas. No guarda: eso lo hace index.ts.
+export function prepararCorrecciones(args: Fila, d: Datos) {
+  const t = new Tienda(d);
+  const lista: Fila[] = Array.isArray(args?.cambios) ? args.cambios.slice(0, 30) : [];
+  const listos: { id: string; codigo: string; fila: Fila; antes: Fila; despues: Fila }[] = [], errores: string[] = [];
+  for (const c of lista) {
+    const codigo = codigoDe(c.codigo);
+    const p = d.prendas.find((x) => x.codigo === codigo);
+    if (!p) { errores.push(`${codigo}: no existe esa prenda.`); continue; }
+    const fila: Fila = {}, antes: Fila = {}, despues: Fila = {};
+    const poner = (campo: string, columna: string, valor: unknown, viejo: unknown) => { if (valor !== viejo) { fila[columna] = valor; antes[campo] = viejo ?? ""; despues[campo] = valor; } };
+    if (c.descripcion != null) { const v = String(c.descripcion).trim().slice(0, 50); if (!v) errores.push(`${codigo}: el nombre no puede quedar vacío.`); else poner("descripcion", "descripcion", v, p.descripcion); }
+    if (c.tipo != null) { const v = deLista(TIPOS, c.tipo); if (!v) errores.push(`${codigo}: tipo «${c.tipo}» no existe.`); else poner("tipo", "tipo", v, p.tipo); }
+    if (c.talla != null) { const v = String(c.talla).trim().slice(0, 10); poner("talla", "talla", v.length <= 3 ? v.toUpperCase() : v, p.talla); }
+    if (c.color != null) { const v = deLista(COLORES, c.color); if (!v) errores.push(`${codigo}: color «${c.color}» no existe.`); else poner("color", "color", v, p.color); }
+    if (c.para != null) { const v = deLista(GENEROS, c.para); if (!v) errores.push(`${codigo}: «para» tiene que ser Mujer, Hombre o Unisex.`); else poner("para", "genero", v, p.genero || "Mujer"); }
+    if (c.precio != null) {
+      const v = Math.round(num(c.precio));
+      if (p.estado === "vendida") errores.push(`${codigo}: ya se vendió; su precio no se cambia aquí.`);
+      else if (v < 100 || v > 5000000) errores.push(`${codigo}: precio ${c.precio} no es válido.`);
+      else poner("precio", "precio", v, num(p.precio));
+    }
+    if (!Object.keys(fila).length) continue;
+    if (p.estado === "disponible" && ("descripcion" in fila || "talla" in fila || "precio" in fila)) fila.impresa = false;
+    listos.push({ id: p.id, codigo, fila, antes, despues: { ...despues, ...(fila.impresa === false ? { etiqueta: "hay que reimprimirla" } : {}) } });
+  }
+  return { listos, errores, t };
+}
+export function datosParaFoto(p: Fila, d: Datos) {
+  const t = new Tienda(d);
+  const r = t.prenda(p);
+  const costo = t.costo(p), factor = num(d.config?.factor) || 2.5;
+  if (costo > 0) r.precio_sugerido_por_costo = a900(costo * factor);
+  return r;
+}
+
+export const INSTRUCCIONES = "Conector de la tienda de ropa. Sirve para consultar ventas, prendas, pedidos y clientes, y para corregir datos de prendas mal registradas " +
+  "(nombre, tipo, talla, color, para quién, precio). Antes de corregir algo, muéstrele a la dueña qué va a cambiar y espere su sí. " +
+  "Para revisar si una prenda está bien registrada, mire su foto con ver_fotos. Los montos son colones (₡). " +
   "«Ganancia» ya resta lo que costó cada prenda. Un pedido es un apartado: la clienta paga en abonos y se lleva las prendas cuando pagó lo necesario. " +
   "Responda en español sencillo, con montos como ₡12.900.";
 
 export function listaHerramientas() {
-  return HERRAMIENTAS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: LECTURA }));
+  return [...HERRAMIENTAS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema, annotations: LECTURA })),
+    ...HERRAMIENTAS_ESPECIALES];
 }
 export function correr(nombre: string, args: Fila, datos: Datos, ahora = Date.now()) {
   const h = HERRAMIENTAS.find((x) => x.name === nombre);

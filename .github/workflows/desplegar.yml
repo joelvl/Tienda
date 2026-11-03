@@ -62,7 +62,7 @@ jobs:
             echo "::warning::Sin MCP_CLAVE: el conector de Claude no funciona hasta que se ponga ese secreto en GitHub (firma los permisos del login)."
           fi
 
-      - name: Publicar el conector de Claude (MCP, solo lectura)
+      - name: Publicar el conector de Claude (MCP)
         run: supabase functions deploy mcp --project-ref "$PROJECT_REF" --yes   # verify_jwt = false en supabase/config.toml
 
   pagina:
