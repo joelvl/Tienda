@@ -8,7 +8,7 @@ Inventario, etiquetas con código de barras y ventas para una tienda de ropa ame
 |---|---|
 | `index.html` | Toda la aplicación en un solo archivo. Funciona igual dentro de Claude y publicada en GitHub Pages con Supabase. |
 | `catalogo.html` | Catálogo para los clientes: solo las prendas a la venta (foto, talla, color, precio), sin costos ni ganancias. |
-| `pedido.html` | Lo que ve el cliente con el enlace de su apartado: sus prendas, sus abonos y cuánto le falta. |
+| `pedido.html` | Lo que ve el cliente con el enlace de su pedido: sus prendas, sus abonos y cuánto le falta. |
 | `supabase/migrations/…_mi_tienda.sql` | Tablas, seguridad (solo usuarios con sesión), códigos de etiqueta sin repetir y tiempo real. |
 | `supabase/migrations/…_tiendas.sql` | Catálogo de tiendas donde se compra y la vista `rentabilidad_por_tienda`. |
 | `supabase/migrations/…_clientes.sql` | Clientes (nombre y teléfono; el teléfono es la llave), el cliente de cada venta y permisos para borrar. |
@@ -108,9 +108,9 @@ Ponga el **WhatsApp de la tienda** en **Ajustes**: así cada prenda del catálog
 
 El catálogo solo existe en la versión publicada con Supabase.
 
-## Apartados
-Para apartar: en **Vender** escanee las prendas, elija la clienta y toque **Apartar estas prendas**. Ponga el precio del apartado y, si le dio algo, el primer abono. Las prendas salen del inventario y del catálogo.
+## Pedidos (apartados)
+Para hacer un pedido: en **Vender** escanee las prendas, elija la clienta y toque **Hacer un pedido con estas prendas**. Ponga el precio del pedido y, si le dio algo, el primer abono. Las prendas salen del inventario y del catálogo.
 
-En **Apartados** están todos, con lo que ha pagado cada clienta. En cada apartado puede registrar abonos (monto y fecha), quitar prendas, cambiar el precio, imprimir la **etiqueta del pedido** (nombre y teléfono de la clienta, número de pedido y cuántas prendas) y mandarle por WhatsApp cuánto lleva con el enlace a su pedido (`…/pedido.html?c=…`, solo en la versión con Supabase).
+En **Pedidos** están todos, con lo que ha pagado cada clienta. En cada pedido puede registrar abonos (monto y fecha), quitar prendas, cambiar el precio, imprimir la **etiqueta del pedido** (nombre y teléfono de la clienta, número de pedido y cuántas prendas) y mandarle por WhatsApp cuánto lleva con el enlace a su pedido (`…/pedido.html?c=…`, solo en la versión con Supabase).
 
-Al escanear la etiqueta del pedido (código `P0012`) se abre el apartado. Cuando la clienta llega al porcentaje de **Ajustes** (50 % al inicio), la tienda avisa que ya se puede entregar. Al **entregar**, las prendas pasan a vendidas y el precio del apartado se reparte entre ellas; si todavía debe algo, se siguen anotando sus abonos. Al **cancelar**, las prendas vuelven a la tienda.
+Al escanear la etiqueta del pedido (código `P0012`) se abre el pedido. Cuando la clienta llega al porcentaje de **Ajustes** (50 % al inicio), la tienda avisa que ya se puede entregar. Al **entregar**, las prendas pasan a vendidas y el precio del pedido se reparte entre ellas; si todavía debe algo, se siguen anotando sus abonos. Al **cancelar**, las prendas vuelven a la tienda.

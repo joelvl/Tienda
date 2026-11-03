@@ -1126,7 +1126,7 @@ const TABS = [
   { id: 'vender', txt: 'Vender', ico: 'etiqueta' },
   { id: 'prendas', txt: 'Prendas', ico: 'percha' },
   { id: 'compras', txt: 'Compras', ico: 'bolsa' },
-  { id: 'apartados', txt: 'Apartados', ico: 'reloj' },
+  { id: 'apartados', txt: 'Pedidos', ico: 'reloj' },
   { id: 'clientes', txt: 'Clientes', ico: 'persona' },
 ];
 function ir(v) {
@@ -1803,7 +1803,7 @@ function pintarCarrito(forzar) {
       <button type="button" class="btn btn-sec" data-accion="vaciar-carrito">Vaciar</button>
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-venta">Guardar venta</button>
     </div>
-    <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartar">${ICON.reloj} Apartar estas prendas (pagará en abonos)</button>`;
+    <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartar">${ICON.reloj} Hacer un pedido con estas prendas (pagará en abonos)</button>`;
   pintarTotalesCarrito();
 }
 function pintarTotalesCarrito() {
@@ -2524,7 +2524,7 @@ function abrirCliente(tel) {
       <div><dt>Prendas</dt><dd>${nf.format(st.prendas)}</dd></div>
       ${st.ventas ? `<div><dt>Gasta por compra</dt><dd>${col(Math.round(st.gasto / st.ventas))}</dd></div>` : ''}
     </dl>
-    ${(() => { const aps = S.apartados.filter(a => a.clienteTel === tel && a.estado !== 'cancelado').sort((a, b) => b.numero - a.numero); return aps.length ? `<h3 class="grupo-sel">Apartados</h3>${aps.map(htmlFilaApartado).join('')}` : ''; })()}
+    ${(() => { const aps = S.apartados.filter(a => a.clienteTel === tel && a.estado !== 'cancelado').sort((a, b) => b.numero - a.numero); return aps.length ? `<h3 class="grupo-sel">Pedidos</h3>${aps.map(htmlFilaApartado).join('')}` : ''; })()}
     ${ventas.length ? `<h3 class="grupo-sel">Lo que ha comprado</h3>${ventas.slice(0, 40).map(v => `<div class="venta-cliente">
       <div class="vc-cab"><span>${esc(fLarga.format(v.fecha))}</span><span>${col(v.total)}</span></div>
       <ul>${v.ps.map(p => `<li>${esc(p.descripcion)}${p.talla ? `, talla ${esc(p.talla)}` : ''}: ${col(p.precioVenta)}</li>`).join('')}</ul></div>`).join('')}` : '<p class="nota">Todavía no le ha comprado nada.</p>'}
@@ -2576,7 +2576,7 @@ function abrirPedidoPorCodigo(t) {
   if (a) abrirApartado(a.id); else toast(`No hay ningún pedido ${String(t).toUpperCase()}.`, 'mal');
 }
 function htmlBarraApartado(st) {
-  return `<span class="prog ${st.puedeEntregar ? '' : 'falta'}" role="progressbar" aria-label="Pagado del apartado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><span style="width:${st.pct}%"></span></span>`;
+  return `<span class="prog ${st.puedeEntregar ? '' : 'falta'}" role="progressbar" aria-label="Pagado del pedido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${st.pct}"><span style="width:${st.pct}%"></span></span>`;
 }
 function htmlFilaApartado(a) {
   const st = statsApartado(a), cli = clientePorTel(a.clienteTel), n = prendasDeApartado(a.id).length;
@@ -2593,22 +2593,22 @@ function abrirApartar() {
   const items = itemsCarrito();
   if (!items.length) return;
   const cli = clientePorTel(clienteVenta);
-  if (!cli) { toast('Primero elija a quién se le apartan las prendas.', 'mal'); abrirClientes(true); return; }
+  if (!cli) { toast('Primero elija la clienta del pedido.', 'mal'); abrirClientes(true); return; }
   const total = suma(items, x => x.precio);
-  abrirHoja(`<h2>Apartar para ${esc(cli.nombre)}</h2>
+  abrirHoja(`<h2>Pedido para ${esc(cli.nombre)}</h2>
     <p>${plural(items.length, 'prenda sale', 'prendas salen')} del inventario hasta que se ${items.length === 1 ? 'la' : 'las'} entregue. Por etiqueta ${items.length === 1 ? 'vale' : 'suman'} ${col(total)}.</p>
-    <div class="campo"><label for="apPrecio">Precio del apartado</label>${htmlStepper('apPrecio', total, '', 500)}<p class="nota mt">Lo que le va a cobrar por todas juntas.</p></div>
+    <div class="campo"><label for="apPrecio">Precio del pedido</label>${htmlStepper('apPrecio', total, '', 500)}<p class="nota mt">Lo que le va a cobrar por todas juntas.</p></div>
     <div class="campo"><label for="apAbono">Lo que le dio hoy (primer abono)</label>${htmlStepper('apAbono', 0, '', 500)}<p class="nota mt">Déjelo vacío si todavía no le ha dado nada.</p></div>
     <div class="botones-hoja">
-      <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-apartado">${ICON.reloj} Guardar apartado</button>
+      <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-apartado">${ICON.reloj} Guardar pedido</button>
       <button type="button" class="btn btn-sec btn-enorme" data-cerrar>Volver a la venta</button>
-    </div>`, null, 'Apartar');
+    </div>`, null, 'Pedido nuevo');
 }
 async function guardarApartado(btn) {
   const items = itemsCarrito(), cli = clientePorTel(clienteVenta);
   if (!items.length || !cli) { cerrarHoja(); return; }
   const precio = num($('#apPrecio').value), abono = num($('#apAbono').value);
-  if (!(precio > 0)) { toast('Escriba el precio del apartado.', 'mal'); $('#apPrecio').focus(); return; }
+  if (!(precio > 0)) { toast('Escriba el precio del pedido.', 'mal'); $('#apPrecio').focus(); return; }
   if (abono > precio) { toast('El abono no puede ser más que el precio.', 'mal'); $('#apAbono').focus(); return; }
   btn.disabled = true;
   const t = Date.now();
@@ -2622,14 +2622,14 @@ async function guardarApartado(btn) {
   if (abono > 0) await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto: abono, fecha: t, nota: '' }));
   clienteVenta = ''; guardarCarritoLocal();
   pintarCarrito(true);
-  toast(`Apartado #${a.numero} guardado para ${cli.nombre}.`, 'bien');
+  toast(`Pedido #${a.numero} guardado para ${cli.nombre}.`, 'bien');
   abrirApartado(a.id);
 }
 
 // Mensaje para la clienta: cuánto lleva, cuánto falta y el enlace a su pedido
 function textoEstadoCuenta(a, st) {
   const cli = clientePorTel(a.clienteTel);
-  let t = `¡Hola${cli ? ' ' + cli.nombre.split(' ')[0] : ''}! Su apartado #${a.numero} en ${S.config.nombre || 'la tienda'}: `;
+  let t = `¡Hola${cli ? ' ' + cli.nombre.split(' ')[0] : ''}! Su pedido #${a.numero} en ${S.config.nombre || 'la tienda'}: `;
   t += st.falta > 0 ? `ha abonado ${col(st.pagado)} de ${col(a.precio)}, le faltan ${col(st.falta)}.` : `ya está pagado completo (${col(a.precio)}). ¡Muchas gracias!`;
   if (st.ultimo) t += ` Último abono: ${col(st.ultimo.monto)} el ${fCorta.format(st.ultimo.fecha)}.`;
   if (hayEnlacePedido()) t += ` Aquí puede ver sus prendas y sus abonos: ${urlPedido(a)}`;
@@ -2637,13 +2637,13 @@ function textoEstadoCuenta(a, st) {
 }
 function abrirApartado(id) {
   const a = apartadoPorId(id);
-  if (!a) { toast('No se encontró ese apartado.', 'mal'); return; }
+  if (!a) { toast('No se encontró ese pedido.', 'mal'); return; }
   const st = statsApartado(a), cli = clientePorTel(a.clienteTel), ps = prendasDeApartado(a.id);
   const abierto = a.estado === 'apartado', cobrando = a.estado !== 'cancelado' && st.falta > 0;
   const btnEntregar = abierto ? `<button type="button" class="btn ${st.puedeEntregar ? 'btn-marca' : 'btn-sec'} btn-enorme" data-accion="entregar-apartado" data-id="${esc(a.id)}">${ICON.check} Entregar las prendas</button>` : '';
   const ctx = abrirHoja(`<p class="codigo">Pedido ${esc(codigoPedido(a))}</p>
-    <h2 class="sin-margen">Apartado #${a.numero}${cli ? ' de ' + esc(cli.nombre) : ''}</h2>
-    <p class="nota">${cli ? `Tel. ${esc(telBonito(cli.telefono))} · ` : ''}apartado el ${esc(fLarga.format(a.creado))}${a.entregado ? ` · entregado el ${esc(fLarga.format(a.entregado))}` : ''}</p>
+    <h2 class="sin-margen">Pedido #${a.numero}${cli ? ' de ' + esc(cli.nombre) : ''}</h2>
+    <p class="nota">${cli ? `Tel. ${esc(telBonito(cli.telefono))} · ` : ''}hecho el ${esc(fLarga.format(a.creado))}${a.entregado ? ` · entregado el ${esc(fLarga.format(a.entregado))}` : ''}</p>
     <p class="estado-apartado ${a.estado === 'cancelado' ? '' : st.puedeEntregar || a.estado === 'entregado' ? 'verde' : ''}"><b>${esc(textoEstadoApartado(a, st))}</b></p>
     ${a.estado === 'cancelado' ? '' : htmlBarraApartado(st)}
     <dl class="cifras">
@@ -2660,8 +2660,8 @@ function abrirApartado(id) {
     <h3 class="grupo-sel">Prendas (${ps.length})</h3>
     ${ps.length ? ps.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
         <span><b>${esc(p.descripcion)}</b><br><span class="nota">Código ${esc(p.codigo)}${p.talla ? `, talla ${esc(p.talla)}` : ''} · etiqueta ${col(p.precio)}</span></span>
-        ${abierto ? `<button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del apartado">Quitar</button>` : '<span></span>'}
-      </div>`).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este apartado no tiene prendas.'}</p>`}
+        ${abierto ? `<button type="button" class="btn btn-sec" data-accion="soltar-prenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.descripcion)} del pedido">Quitar</button>` : '<span></span>'}
+      </div>`).join('') : `<p class="nota">${a.estado === 'cancelado' ? 'Las prendas volvieron a la tienda.' : 'Este pedido no tiene prendas.'}</p>`}
     <div class="botones-hoja">
       ${st.puedeEntregar ? btnEntregar : ''}
       ${cli && a.estado !== 'cancelado' ? `<a class="btn btn-gana btn-enorme" href="${enlaceWhatsApp(cli.telefono)}?text=${encodeURIComponent(textoEstadoCuenta(a, st))}" target="_blank" rel="noopener">${ICON.whatsapp} Enviarle cuánto lleva por WhatsApp</a>` : ''}
@@ -2669,8 +2669,8 @@ function abrirApartado(id) {
       ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-pedido" data-id="${esc(a.id)}">${ICON.impresora} Imprimir etiqueta del pedido</button>` : ''}
       ${st.puedeEntregar ? '' : btnEntregar}
       ${a.estado !== 'cancelado' ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="editar-apartado" data-id="${esc(a.id)}">Cambiar el precio</button>` : ''}
-      ${abierto ? `<button type="button" class="btn btn-peligro btn-enorme" data-accion="cancelar-apartado" data-id="${esc(a.id)}">Cancelar apartado</button>` : ''}
-    </div>`, null, `Apartado ${a.numero}`);
+      ${abierto ? `<button type="button" class="btn btn-peligro btn-enorme" data-accion="cancelar-apartado" data-id="${esc(a.id)}">Cancelar pedido</button>` : ''}
+    </div>`, null, `Pedido ${a.numero}`);
   ctx.apartadoId = a.id;
 }
 // Vuelve a pintar el apartado abierto sin perder dónde iba
@@ -2700,7 +2700,7 @@ async function guardarAbono(id, btn) {
   btn.disabled = true;
   if (await escribir(() => backend.ponerAbono({ id: nuevoId('b'), apartadoId: a.id, monto, fecha, nota: '' }))) {
     const nuevo = statsApartado(a);
-    toast(nuevo.falta ? `Abono de ${col(monto)} guardado. Le faltan ${col(nuevo.falta)}.` : `Abono guardado. ¡Ya pagó todo el apartado!`, 'bien');
+    toast(nuevo.falta ? `Abono de ${col(monto)} guardado. Le faltan ${col(nuevo.falta)}.` : `Abono guardado. ¡Ya pagó todo el pedido!`, 'bien');
     repintarApartado(a.id);
   } else btn.disabled = false;
 }
@@ -2708,13 +2708,13 @@ function abrirEditarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
   const ps = prendasDeApartado(a.id);
-  abrirHoja(`<h2>Precio del apartado #${a.numero}</h2>
-    <div class="campo"><label for="apPrecio">Precio del apartado</label>${htmlStepper('apPrecio', a.precio, '', 500)}
+  abrirHoja(`<h2>Precio del pedido #${a.numero}</h2>
+    <div class="campo"><label for="apPrecio">Precio del pedido</label>${htmlStepper('apPrecio', a.precio, '', 500)}
       <p class="nota mt">Por etiqueta, sus ${plural(ps.length, 'prenda vale', 'prendas suman')} ${col(suma(ps, p => p.precio))}. Ya ha pagado ${col(statsApartado(a).pagado)}.</p></div>
     <div class="botones-hoja">
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-precio-apartado" data-id="${esc(a.id)}">Guardar precio</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="ver-apartado" data-id="${esc(a.id)}">Volver</button>
-    </div>`, null, 'Precio del apartado');
+    </div>`, null, 'Precio del pedido');
 }
 async function guardarPrecioApartado(id, btn) {
   const a = apartadoPorId(id);
@@ -2744,24 +2744,24 @@ function entregarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
   const st = statsApartado(a), ps = prendasDeApartado(a.id);
-  if (!ps.length) { toast('Este apartado no tiene prendas para entregar.', 'mal'); return; }
-  confirmar(`¿Entregarle las prendas del apartado #${a.numero}?`,
-    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el apartado y puede seguir registrando sus abonos. ` : ''}Las ${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(a.precio)} en total.`,
+  if (!ps.length) { toast('Este pedido no tiene prendas para entregar.', 'mal'); return; }
+  confirmar(`¿Entregarle las prendas del pedido #${a.numero}?`,
+    `${st.falta ? `Todavía le faltan <b>${col(st.falta)}</b>: quedan como deuda en el pedido y puede seguir registrando sus abonos. ` : ''}Las ${plural(ps.length, 'prenda pasa', 'prendas pasan')} a vendidas por ${col(a.precio)} en total.`,
     'Sí, entregar', async () => {
       const t = Date.now();
       const ok = await repartirVenta(a, ps, { estado: 'vendida', fechaVenta: t, ventaId: a.id, clienteTel: a.clienteTel || null });
-      if (ok && await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t }))) { toast(`Apartado #${a.numero} entregado.`, 'bien'); abrirApartado(a.id); }
+      if (ok && await escribir(() => backend.ponerApartado({ ...a, estado: 'entregado', entregado: t }))) { toast(`Pedido #${a.numero} entregado.`, 'bien'); abrirApartado(a.id); }
     });
 }
 function cancelarApartado(id) {
   const a = apartadoPorId(id);
   if (!a) return;
   const st = statsApartado(a), ps = prendasDeApartado(a.id);
-  confirmar(`¿Cancelar el apartado #${a.numero}?`,
+  confirmar(`¿Cancelar el pedido #${a.numero}?`,
     `Las ${plural(ps.length, 'prenda vuelve', 'prendas vuelven')} a la tienda.${st.pagado ? ` Los abonos (${col(st.pagado)}) quedan anotados; si le devuelve la plata, eso lo arregla usted con la clienta.` : ''}`,
-    'Sí, cancelar apartado', async () => {
+    'Sí, cancelar pedido', async () => {
       for (const p of ps) if (!(await escribir(() => backend.actualizarPrenda(p.id, { estado: 'disponible', apartadoId: null })))) return;
-      if (await escribir(() => backend.ponerApartado({ ...a, estado: 'cancelado' }))) { toast(`Apartado #${a.numero} cancelado. Las prendas volvieron a la tienda.`); abrirApartado(a.id); }
+      if (await escribir(() => backend.ponerApartado({ ...a, estado: 'cancelado' }))) { toast(`Pedido #${a.numero} cancelado. Las prendas volvieron a la tienda.`); abrirApartado(a.id); }
     });
 }
 async function copiarEnlacePedido(id) {
@@ -2797,14 +2797,14 @@ function pintarVistaApartados() {
     b.setAttribute('aria-pressed', String(b.dataset.valor === filtroApartados.ver));
   });
   if (!todos.length) {
-    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay apartados.</b></p><p>Para apartar: en <b>Vender</b> escanee las prendas, elija la clienta y toque «Apartar estas prendas».</p></div>`;
+    cont.innerHTML = `<div class="vacio mt"><p><b>Todavía no hay pedidos.</b></p><p>Para hacer uno: en <b>Vender</b> escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».</p></div>`;
     return;
   }
   const lista = (filtroApartados.ver === 'activos' ? activos : todos.filter(x => !apartadoActivo(x.a, x.st)))
     .filter(x => coincideApartado(x.a, filtroApartados.q))
     .sort((x, y) => (y.st.puedeEntregar && y.a.estado === 'apartado') - (x.st.puedeEntregar && x.a.estado === 'apartado') || y.a.numero - x.a.numero);
   cont.innerHTML = lista.length ? lista.slice(0, 200).map(x => htmlFilaApartado(x.a)).join('')
-    : `<div class="vacio mt"><p>${filtroApartados.q ? `No hay apartados con “${esc(filtroApartados.q)}”.` : filtroApartados.ver === 'activos' ? 'No hay apartados activos.' : 'Todavía no hay apartados terminados.'}</p></div>`;
+    : `<div class="vacio mt"><p>${filtroApartados.q ? `No hay pedidos con “${esc(filtroApartados.q)}”.` : filtroApartados.ver === 'activos' ? 'No hay pedidos activos.' : 'Todavía no hay pedidos terminados.'}</p></div>`;
 }
 
 // Contactos del teléfono (Chrome en Android). Se toma el nombre y el número.
@@ -2908,7 +2908,7 @@ function abrirPrenda(id) {
       <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
     ${apartado ? `<div class="aviso aviso-marca"><p>Está <b>apartada${esc(textoDeApartado(p))}</b>. No sale en el inventario ni en el catálogo.</p>
-      <button type="button" class="btn btn-marca" data-accion="ver-apartado" data-id="${esc(apartado.id)}">${ICON.reloj} Ver el apartado</button></div>` : ''}
+      <button type="button" class="btn btn-marca" data-accion="ver-apartado" data-id="${esc(apartado.id)}">${ICON.reloj} Ver el pedido</button></div>` : ''}
     <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}${clientePorTel(p.clienteTel) ? ` a ${esc(clientePorTel(p.clienteTel).nombre)} (tel. ${esc(telBonito(p.clienteTel))})` : ''}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''} ${p.costoFijo || !c ? 'El costo lo escribió usted.' : 'El costo sale de repartir lo que costó la compra.'}</p>
     ${consejo}
     <div class="botones-hoja">
@@ -3244,7 +3244,7 @@ function abrirAjustes() {
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
     <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">Sale abajo en cada etiqueta, y en el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
-    <div class="campo"><label for="aPct">Apartados: se entregan al pagar el</label><select id="aPct">${[0, 25, 30, 40, 50, 60, 70, 75, 80, 100].map(n => `<option value="${n}" ${n === pctParaEntregar() ? 'selected' : ''}>${n} %${n === 0 ? ' (en cualquier momento)' : n === 100 ? ' (solo pagado completo)' : ''}</option>`).join('')}</select><p class="nota mt">La tienda le avisa cuando un apartado ya llegó a ese porcentaje.</p></div>
+    <div class="campo"><label for="aPct">Pedidos: se entregan al pagar el</label><select id="aPct">${[0, 25, 30, 40, 50, 60, 70, 75, 80, 100].map(n => `<option value="${n}" ${n === pctParaEntregar() ? 'selected' : ''}>${n} %${n === 0 ? ' (en cualquier momento)' : n === 100 ? ' (solo pagado completo)' : ''}</option>`).join('')}</select><p class="nota mt">La tienda le avisa cuando un pedido ya llegó a ese porcentaje.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
@@ -3469,17 +3469,17 @@ const VISTAS = {
   },
   apartados: {
     mount(el) {
-      el.innerHTML = `<h1>Apartados</h1>
+      el.innerHTML = `<h1>Pedidos</h1>
         <div class="botones-clientes">
           <button type="button" class="btn btn-marca btn-enorme" data-accion="escanear-pedido">${ICON.escaner} Escanear etiqueta de pedido</button>
-          <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartado-nuevo">${ICON.mas} Apartado nuevo</button>
+          <button type="button" class="btn btn-sec btn-enorme mt" data-accion="apartado-nuevo">${ICON.mas} Pedido nuevo</button>
         </div>
         <dl class="cifras" id="cifrasApartados"></dl>
-        <div class="segmento dos-op" role="group" aria-label="Qué apartados mostrar">
+        <div class="segmento dos-op" role="group" aria-label="Qué pedidos mostrar">
           <button type="button" data-accion="ver-apartados" data-valor="activos"></button>
           <button type="button" data-accion="ver-apartados" data-valor="terminados"></button>
         </div>
-        <div class="campo mt"><label for="qApartados" class="sr">Buscar apartados</label><input id="qApartados" type="search" enterkeyhint="search" autocomplete="off" placeholder="Buscar por cliente, teléfono o número" value="${esc(filtroApartados.q)}"></div>
+        <div class="campo mt"><label for="qApartados" class="sr">Buscar pedidos</label><input id="qApartados" type="search" enterkeyhint="search" autocomplete="off" placeholder="Buscar por cliente, teléfono o número" value="${esc(filtroApartados.q)}"></div>
         <div id="listaApartados"></div>`;
       $('#qApartados').addEventListener('keydown', e => { if (e.key === 'Enter' && /^p\d{1,6}$/i.test(e.target.value.trim())) { e.preventDefault(); abrirPedidoPorCodigo(e.target.value.trim()); } });
     },
@@ -3647,7 +3647,7 @@ document.addEventListener('click', async e => {
     // apartados
     case 'apartar': abrirApartar(); break;
     case 'guardar-apartado': guardarApartado(el); break;
-    case 'apartado-nuevo': ir('vender'); toast('Escanee las prendas, elija la clienta y toque «Apartar estas prendas».'); break;
+    case 'apartado-nuevo': ir('vender'); toast('Escanee las prendas, elija la clienta y toque «Hacer un pedido con estas prendas».'); break;
     case 'escanear-pedido': abrirEscaner('pedido'); break;
     case 'ver-apartados': filtroApartados.ver = valor; pintarVistaApartados(); break;
     case 'ver-apartado': abrirApartado(id); break;
