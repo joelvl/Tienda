@@ -2567,20 +2567,21 @@ function abrirPrenda(id) {
       <div><dt>${vendida ? 'La vendió en' : 'Precio de etiqueta'}</dt><dd>${col(vendida ? p.precioVenta : p.precio)}</dd></div>
       <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
-    <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}${clientePorTel(p.clienteTel) ? ` a ${esc(clientePorTel(p.clienteTel).nombre)} (tel. ${esc(telBonito(p.clienteTel))})` : ''}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''}</p>
+    <p class="nota">${vendida ? `Vendida el ${fLarga.format(p.fechaVenta)}${clientePorTel(p.clienteTel) ? ` a ${esc(clientePorTel(p.clienteTel).nombre)} (tel. ${esc(telBonito(p.clienteTel))})` : ''}.` : `En la tienda desde el ${fCorta.format(p.creada)} (${hace(p.creada)}).`}${c ? ` De la compra: ${esc(c.nombre)}.` : ''} ${p.costoFijo || !c ? 'El costo lo escribió usted.' : 'El costo sale de repartir lo que costó la compra.'}</p>
     ${consejo}
     <div class="botones-hoja">
       ${vendida
         ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="deshacer-venta" data-id="${esc(p.id)}">Deshacer venta</button>`
         : `<button type="button" class="btn btn-gana btn-enorme" data-accion="vender-prenda" data-id="${esc(p.id)}">${ICON.etiqueta} Vender esta prenda</button>
            <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-una" data-id="${esc(p.id)}">${ICON.impresora} Imprimir etiqueta</button>`}
-      <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-prenda" data-id="${esc(p.id)}">Cambiar datos o precio</button>
+      <button type="button" class="btn btn-sec btn-enorme" data-accion="editar-prenda" data-id="${esc(p.id)}">Cambiar datos, costo o precio</button>
       <button type="button" class="btn btn-peligro btn-enorme" data-accion="borrar-prenda" data-id="${esc(p.id)}">Borrar prenda</button>
     </div>`, null, p.descripcion);
 }
 function abrirEditar(id) {
   const p = buscar(id);
   if (!p) return;
+  const c = compraPorId(p.compraId);
   abrirHoja(`<h2>Cambiar datos</h2>
     <div class="campo"><label for="eDesc">Nombre en la etiqueta</label><input id="eDesc" autocomplete="off" maxlength="50" value="${esc(p.descripcion)}"></div>
     <div class="dos">
@@ -2591,10 +2592,10 @@ function abrirEditar(id) {
       <div class="campo"><label for="eTalla">Talla</label><input id="eTalla" autocomplete="off" value="${esc(p.talla)}"></div>
       <div class="campo"><label for="eGenero">Para</label><select id="eGenero">${GENEROS.map(g => `<option ${g === generoDe(p) ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
     </div>
-    <div class="dos">
-      <div class="campo"><label for="eCosto">Le costó</label><div class="dinero"><input id="eCosto" inputmode="numeric" pattern="[0-9]*" value="${costoDe(p)}"></div></div>
-    </div>
     <div class="campo"><label for="eCompra">Compra</label><select id="eCompra">${opcionesCompra(p.compraId)}</select></div>
+    <div class="campo"><label for="eCosto">Le costó esta prenda</label>${htmlStepper('eCosto', costoDe(p), '', 500)}
+      <p class="nota mt">${p.costoFijo || !c ? 'Este costo lo escribió usted.' : `Ahora sale de repartir lo que costó la compra «${esc(c.nombre)}». Si lo cambia, queda fijo para esta prenda.`}</p>
+      ${p.costoFijo && c ? `<label class="nota mt"><input type="checkbox" id="eCostoCompra"> Volver a usar el costo repartido de la compra (${col(costoUnidad(c))})</label>` : ''}</div>
     <div class="campo"><label for="ePrecio">Precio de etiqueta</label>${htmlStepper('ePrecio', p.precio, '', 1000)}</div>
     ${p.estado === 'vendida' ? `<div class="campo"><label for="eVenta">La vendió en</label><div class="dinero"><input id="eVenta" inputmode="numeric" pattern="[0-9]*" value="${p.precioVenta || 0}"></div></div>` : ''}
     <p class="nota">Si cambia el precio de etiqueta, la tienda le recordará volver a imprimirla.</p>
@@ -2611,7 +2612,8 @@ async function guardarEdicion(id, btn) {
     descripcion: $('#eDesc').value.trim() || $('#eTipo').value, tipo: $('#eTipo').value,
     talla: $('#eTalla').value.trim(), color: $('#eColor').value, genero: $('#eGenero').value, compraId, precio,
   };
-  if (costoNuevo !== costoDe(p) || !compraPorId(compraId)) { cambios.costo = costoNuevo; cambios.costoFijo = true; }
+  if ($('#eCostoCompra') && $('#eCostoCompra').checked && compraPorId(compraId)) cambios.costoFijo = false;
+  else if (costoNuevo !== costoDe(p) || !compraPorId(compraId)) { cambios.costo = costoNuevo; cambios.costoFijo = true; }
   if (precio !== p.precio) cambios.impresa = false;
   if (p.estado === 'vendida' && $('#eVenta')) cambios.precioVenta = num($('#eVenta').value);
   btn.disabled = true;
