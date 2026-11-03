@@ -271,7 +271,7 @@ th{font-size:15px;color:var(--tinta-suave)}
 .tels-contacto{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .detalle-foto{display:block;width:100%;max-height:300px;object-fit:contain;border-radius:14px;background:var(--superficie-2);margin-bottom:12px}
 .ayuda-hoy{width:100%}
-.pedidos-hoy{grid-column:1/-1}
+.ancho-hoy{grid-column:1/-1}
 .foto-acciones{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .foto-acciones .btn{flex:1 1 140px;min-height:48px;font-size:16px}
 .fotos-elegir{display:grid;gap:10px}
@@ -1236,6 +1236,7 @@ function htmlHoy() {
   const viejas = disponibles().filter(p => diasDesde(p.creada) >= 30);
   const pendEtq = disponibles().filter(p => !p.impresa);
   const pedidosActivos = S.apartados.filter(a => apartadoActivo(a, statsApartado(a))).length;
+  const enOfertaHoy = disponibles().filter(enOferta).length;
   return `
     <p class="saludo">${saludo}</p>
     <h1>${mayus(fLarga.format(ahora))}</h1>
@@ -1249,7 +1250,8 @@ function htmlHoy() {
       <div class="acciones">
         <button type="button" class="btn btn-marca btn-enorme" data-ir="agregar">${ICON.camara} Agregar prendas</button>
         <button type="button" class="btn btn-gana btn-enorme" data-ir="vender">${ICON.etiqueta} Vender</button>
-        <button type="button" class="btn btn-sec btn-enorme pedidos-hoy" data-ir="apartados">${ICON.reloj} Pedidos${pedidosActivos ? ` (${nf.format(pedidosActivos)})` : ''}</button>
+        <button type="button" class="btn btn-sec btn-enorme ancho-hoy" data-ir="apartados">${ICON.reloj} Pedidos${pedidosActivos ? ` (${nf.format(pedidosActivos)})` : ''}</button>
+        <button type="button" class="btn btn-sec btn-enorme ancho-hoy" data-accion="ver-ofertas">${ICON.etiqueta} Ofertas${enOfertaHoy ? ` (${nf.format(enOfertaHoy)})` : ''}</button>
       </div>
       ${pendEtq.length ? `<div class="aviso aviso-marca"><p>Tiene <b>${plural(pendEtq.length, 'etiqueta', 'etiquetas')}</b> sin imprimir.</p>
         <button type="button" class="btn btn-marca" data-accion="imprimir-pendientes">${ICON.impresora} Imprimir etiquetas</button></div>` : ''}
@@ -4014,6 +4016,14 @@ document.addEventListener('click', async e => {
     case 'alternar-viejas': filtro.viejas = !filtro.viejas; if (filtro.viejas) filtro.estado = 'disponible'; filtro.mostrar = 60; VISTAS.prendas.update(); break;
     case 'ver-mas': filtro.mostrar += 60; pintarListaPrendas(); break;
     // ofertas
+    case 'ver-ofertas': {
+      // Desde Inicio: si ya hay prendas en oferta, se muestran; si no, se empieza a elegir cuáles poner.
+      const hay = disponibles().some(enOferta);
+      Object.assign(filtro, { estado: 'disponible', ofertas: hay, viejas: false, tipo: '', origen: '', q: '', genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 });
+      ir('prendas');
+      if (!hay) { ofertaSel = new Set(); VISTAS.prendas.update(); toast('Toque las prendas que quiere poner en oferta.'); }
+      break;
+    }
     case 'elegir-ofertas': ofertaSel = new Set(); Object.assign(filtro, { estado: 'disponible', mostrar: 60 }); VISTAS.prendas.update(); toast('Toque las prendas que quiere poner en oferta.'); break;
     case 'cancelar-ofertas': ofertaSel = null; VISTAS.prendas.update(); break;
     case 'sel-oferta': if (ofertaSel) { if (ofertaSel.has(id)) ofertaSel.delete(id); else ofertaSel.add(id); pintarListaPrendas(); } break;
