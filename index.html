@@ -625,7 +625,7 @@ const muestraColor = n => (COLORES.find(c => c[0] === n) || [n, 'transparent'])[
 const TAMANOS = {
   '50x30': { w: 50, h: 30, nombre: '50 × 30 mm' },
   '40x30': { w: 40, h: 30, nombre: '40 × 30 mm' },
-  '60x40': { w: 60, h: 40, nombre: '60 × 40 mm' },
+  '57x40': { w: 57, h: 40, nombre: '57 × 40 mm' },
   '51x25': { w: 50.8, h: 25.4, nombre: '2 × 1 pulgadas' },
 };
 const PRECIOS_RAPIDOS = [1900, 2900, 3900, 4900, 5900, 6900, 7900, 9900];
@@ -2633,46 +2633,84 @@ function recortar(g, t, ancho) {
   while (t.length > 1 && g.measureText(t + '…').width > ancho) t = t.slice(0, -1);
   return t.trim() + '…';
 }
-async function dibujarEtiqueta(p) {
+// Medidas pensadas en mm para una etiqueta de 30 mm de alto; las demás se escalan.
+// k = puntos por mm (16 en pantalla y PDF, 8 en la impresora térmica); anchoMm = lo que cabe en el cabezal.
+async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0) {
   await fuentesListas();
-  const t = tamanoEtiqueta(), k = PXMM;
-  const W = Math.round(t.w * k), H = Math.round(t.h * k);
+  const t = tamanoEtiqueta(), u = t.h / 30 * k;
+  const W = Math.round((anchoMm || t.w) * k), H = Math.round(t.h * k);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#000'; g.textBaseline = 'top';
   const fam = '"Atkinson Hyperlegible", Arial, sans-serif';
-  const m = 2 * k, mi = 1.6 * k;
-  const sTienda = t.h * 0.09 * k, sDesc = t.h * 0.1 * k, sPrecio = t.h * 0.2 * k, sCod = t.h * 0.075 * k;
-  let y = mi;
-  g.font = `700 ${sTienda}px ${fam}`;
-  const talla = p.talla ? 'Talla ' + p.talla : '';
-  const wTalla = talla ? g.measureText(talla).width : 0;
-  if (talla) { g.textAlign = 'right'; g.fillText(talla, W - m, y); g.textAlign = 'left'; }
-  g.fillText(recortar(g, S.config.nombre || 'Mi tienda', W - 2 * m - wTalla - 2 * k), m, y);
-  y += sTienda * 1.25;
-  g.font = `400 ${sDesc}px ${fam}`;
-  g.fillText(recortar(g, p.descripcion || p.tipo, W - 2 * m), m, y);
-  y += sDesc * 1.2;
+  const m = 1.5 * k, ancho = W - 2 * m;
+  const caja = (x, y, w, h, r) => { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); };
+  const espaciado = px => { if ('letterSpacing' in g) g.letterSpacing = px + 'px'; };
+
+  // Franja negra con el nombre de la tienda
+  let y = 1.2 * u;
+  const hBanda = 4.6 * u;
+  g.fillStyle = '#000'; caja(m, y, ancho, hBanda, 0.9 * u); g.fill();
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `700 ${3 * u}px ${fam}`; espaciado(0.3 * u);
+  g.fillText(recortar(g, (S.config.nombre || 'Mi tienda').toUpperCase(), ancho - 2 * u), W / 2, y + hBanda / 2 + 0.15 * u);
+  espaciado(0);
+  y += hBanda + 0.9 * u;
+
+  // Nombre de la prenda
+  g.fillStyle = '#000'; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.font = `400 ${3 * u}px ${fam}`;
+  g.fillText(recortar(g, p.descripcion || p.tipo, ancho), m, y);
+  y += 3.6 * u;
+
+  // Precio grande y, a la derecha, la talla en un recuadro
+  const hPrecio = 6.2 * u;
+  let wTalla = 0;
+  if (p.talla) {
+    g.font = `700 ${3.6 * u}px ${fam}`;
+    wTalla = Math.max(8 * u, g.measureText(p.talla).width + 2.4 * u);
+    const xT = W - m - wTalla;
+    g.lineWidth = Math.max(2, 0.35 * u);
+    caja(xT + g.lineWidth / 2, y + g.lineWidth / 2, wTalla - g.lineWidth, hPrecio - g.lineWidth, 0.9 * u); g.stroke();
+    g.textAlign = 'center';
+    g.font = `700 ${1.5 * u}px ${fam}`; espaciado(0.15 * u);
+    g.fillText('TALLA', xT + wTalla / 2, y + 0.7 * u);
+    espaciado(0);
+    g.font = `700 ${3.6 * u}px ${fam}`;
+    g.fillText(recortar(g, p.talla, wTalla - 1.2 * u), xT + wTalla / 2, y + 2.3 * u);
+    g.textAlign = 'left';
+  }
+  let sPrecio = 6.6 * u;
+  const libre = ancho - (wTalla ? wTalla + 1.5 * u : 0);
   g.font = `700 ${sPrecio}px ${fam}`;
-  g.fillText(col(p.precio), m, y);
-  y += sPrecio * 1.08;
-  const altoCod = sCod * 1.15;
-  const altoBarras = Math.floor(H - y - mi * 0.75 - altoCod);
+  while (g.measureText(col(p.precio)).width > libre && sPrecio > 3 * u) { sPrecio -= 0.2 * u; g.font = `700 ${sPrecio}px ${fam}`; }
+  g.textBaseline = 'alphabetic';
+  g.fillText(col(p.precio), m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
+  y += hPrecio + 1 * u;
+
+  // Abajo: el código y el WhatsApp de la tienda
+  const sPie = 2.3 * u, yPie = H - 1.3 * u;
+  const tel = S.config.whatsapp ? 'WhatsApp ' + telBonito(S.config.whatsapp) : '';
+  g.font = `700 ${sPie}px ${fam}`;
+  if (tel) {
+    g.fillText(String(p.codigo), m, yPie);
+    g.textAlign = 'right'; g.fillText(recortar(g, tel, ancho - g.measureText(String(p.codigo)).width - 2 * u), W - m, yPie);
+  } else { g.textAlign = 'center'; g.fillText(String(p.codigo), W / 2, yPie); }
+  g.textAlign = 'left';
+
+  // Código de barras en lo que queda
+  const altoBarras = Math.floor(yPie - sPie - 0.6 * u - y);
   if (window.JsBarcode && altoBarras > 4 * k) {
-    let modulo = 4, bc = null;
+    let modulo = Math.max(2, Math.round(0.375 * k)), bc = null;
     do {
       bc = document.createElement('canvas');
       window.JsBarcode(bc, String(p.codigo), { format: 'CODE128', width: modulo, height: altoBarras, displayValue: false, margin: 0, background: '#ffffff', lineColor: '#000000' });
       modulo--;
-    } while (bc.width > W - 2 * m && modulo >= 2);
+    } while (bc.width > ancho && modulo >= 2);
     g.imageSmoothingEnabled = false;
     g.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(y));
   }
-  g.font = `700 ${sCod}px ${fam}`;
-  g.textAlign = 'center';
-  g.fillText(String(p.codigo), W / 2, H - mi * 0.75 - altoCod + sCod * 0.1);
   return c;
 }
 async function abrirEtiquetas(lista, titulo) {
@@ -2683,8 +2721,9 @@ async function abrirEtiquetas(lista, titulo) {
     <p>${plural(lista.length, 'etiqueta', 'etiquetas')} de ${t.nombre}.</p>
     <div class="prev-etiquetas" id="prevEtqs"><p class="cargando"><span class="girando" aria-hidden="true"></span> Preparando etiquetas…</p></div>
     <div class="botones-hoja">
-      ${puedeDescargar() ? `<button type="button" class="btn btn-marca btn-enorme" data-accion="pdf-etiquetas">${ICON.impresora} Descargar para imprimir (PDF)</button>` : ''}
-      <button type="button" class="btn ${puedeDescargar() ? 'btn-sec' : 'btn-marca'} btn-enorme" data-accion="imprimir-directo">Imprimir directo</button>
+      ${hayBluetooth() ? `<button type="button" class="btn btn-marca btn-enorme" data-accion="imprimir-bt">${ICON.impresora} Imprimir por Bluetooth</button>` : ''}
+      ${puedeDescargar() ? `<button type="button" class="btn ${hayBluetooth() ? 'btn-sec' : 'btn-marca'} btn-enorme" data-accion="pdf-etiquetas">${hayBluetooth() ? '' : ICON.impresora + ' '}Descargar para imprimir (PDF)</button>` : ''}
+      <button type="button" class="btn ${puedeDescargar() || hayBluetooth() ? 'btn-sec' : 'btn-marca'} btn-enorme" data-accion="imprimir-directo">Imprimir directo</button>
       ${pendientes.length ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="marcar-impresas">${ICON.check} Ya ${pendientes.length === 1 ? 'la' : 'las'} imprimí</button>` : ''}
     </div>
     <p class="nota">Use rollos de etiquetas térmicas de ${t.nombre}. Al imprimir, elija ese mismo tamaño de papel y escala al 100 %.</p>`, null, titulo);
@@ -2724,6 +2763,86 @@ async function marcarImpresas(lista) {
   toast('Listo. Ya no aparecen como pendientes.', 'bien');
 }
 
+/* ================= IMPRESORA POR BLUETOOTH ================= */
+// Impresoras de etiquetas que entienden TSPL por Bluetooth LE (por ejemplo la HOIN HL2200).
+// Cada etiqueta se manda como una imagen en blanco y negro, igual a la vista previa.
+const BT_SERVICIOS = [
+  0x18f0, 0xff00, 0xffe0, 0xfff0, 0xae30, 0xae00, 0xfee7, 0xff10,
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+];
+const BT_PUNTOS_MM = 8;          // 203 dpi
+const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
+const BT = { disp: null, car: null, trozo: 180 };
+const hayBluetooth = () => !!navigator.bluetooth;
+
+async function conectarImpresora() {
+  if (BT.car && BT.disp.gatt.connected) return;
+  if (!BT.disp) {
+    BT.disp = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BT_SERVICIOS });
+    BT.disp.addEventListener('gattserverdisconnected', () => { BT.car = null; });
+  }
+  const gatt = await BT.disp.gatt.connect();
+  for (const sv of await gatt.getPrimaryServices()) {
+    if (/^0000180[01a]-/.test(sv.uuid)) continue;
+    let cs = [];
+    try { cs = await sv.getCharacteristics(); } catch (e) { continue; }
+    const c = cs.find(x => x.properties.write || x.properties.writeWithoutResponse);
+    if (c) { BT.car = c; return; }
+  }
+  BT.disp = null;
+  throw { code: 'bt_sin_canal' };
+}
+// Manda en pedazos; si la impresora no acepta pedazos grandes, sigue de 20 en 20 bytes
+async function enviarBT(bytes) {
+  const c = BT.car;
+  for (let i = 0; i < bytes.length;) {
+    const parte = bytes.slice(i, i + BT.trozo);
+    try {
+      if (c.properties.write) await c.writeValueWithResponse(parte);
+      else { await c.writeValueWithoutResponse(parte); await espera(20); }
+      i += parte.length;
+    } catch (e) {
+      if (BT.trozo > 20) { BT.trozo = 20; continue; }
+      throw e;
+    }
+  }
+}
+// Imagen a 1 bit para el comando BITMAP de TSPL (0 = punto negro)
+function bitsTspl(c) {
+  const W = c.width, H = c.height, bw = Math.ceil(W / 8);
+  const px = c.getContext('2d').getImageData(0, 0, W, H).data;
+  const out = new Uint8Array(bw * H).fill(0xff);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    if (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11 < 140) out[y * bw + (x >> 3)] &= ~(0x80 >> (x & 7));
+  }
+  return { bw, H, out };
+}
+async function imprimirBluetooth(lista, boton) {
+  const antes = boton.innerHTML;
+  boton.textContent = 'Conectando con la impresora…';
+  try {
+    await conectarImpresora();
+    const t = tamanoEtiqueta(), ancho = Math.min(t.w, BT_ANCHO_CABEZAL);
+    const ascii = s => new TextEncoder().encode(s);
+    await enviarBT(ascii(`SIZE ${t.w} mm,${t.h} mm\r\nGAP 2 mm,0 mm\r\nDIRECTION 1\r\n`));
+    for (let i = 0; i < lista.length; i++) {
+      boton.textContent = lista.length > 1 ? `Imprimiendo ${i + 1} de ${lista.length}…` : 'Imprimiendo…';
+      const b = bitsTspl(await dibujarEtiqueta(lista[i], BT_PUNTOS_MM, ancho));
+      const ini = ascii(`CLS\r\nBITMAP 0,0,${b.bw},${b.H},0,`), fin = ascii('\r\nPRINT 1,1\r\n');
+      const todo = new Uint8Array(ini.length + b.out.length + fin.length);
+      todo.set(ini); todo.set(b.out, ini.length); todo.set(fin, ini.length + b.out.length);
+      await enviarBT(todo);
+    }
+    toast(lista.length > 1 ? `Listo: se mandaron ${lista.length} etiquetas a la impresora.` : 'Listo: se mandó la etiqueta a la impresora.', 'bien');
+  } catch (e) {
+    if (e && e.name === 'NotFoundError') { /* cerró la lista sin elegir */ }
+    else if (e && e.code === 'bt_sin_canal') toast('Se conectó, pero esa impresora no deja mandarle etiquetas. ¿Eligió la impresora correcta?', 'mal');
+    else { BT.car = null; toast('No se pudo imprimir. Revise que la impresora esté encendida y que la app Diabel esté cerrada, y vuelva a intentar.', 'mal'); }
+  }
+  boton.innerHTML = antes;
+}
+
 /* ================= AJUSTES, EXCEL Y RESPALDO ================= */
 function abrirAjustes() {
   const cfg = S.config;
@@ -2733,7 +2852,7 @@ function abrirAjustes() {
     <div class="campo"><label for="aIa">Reconocimiento de fotos</label><select id="aIa">
       <option value="quick" ${cfg.modeloIa !== 'preciso' ? 'selected' : ''}>Rápido (recomendado para muchas fotos)</option>
       <option value="preciso" ${cfg.modeloIa === 'preciso' ? 'selected' : ''}>Más preciso (más lento)</option></select></div>
-    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">En el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
+    <div class="campo"><label for="aWa">WhatsApp de la tienda</label><input id="aWa" inputmode="tel" autocomplete="off" maxlength="20" value="${esc(telBonito(cfg.whatsapp || ''))}" placeholder="Ej: 8888 8888"><p class="nota mt">Sale en cada etiqueta, y en el catálogo, cuando un cliente toca «La quiero», le escribe a este número.</p></div>
     <div class="campo"><label for="aEtq">Tamaño de etiqueta</label><select id="aEtq">${Object.entries(TAMANOS).map(([k, v]) => `<option value="${k}" ${k === cfg.etiqueta ? 'selected' : ''}>${v.nombre}</option>`).join('')}</select></div>
     <div class="campo"><span class="etq">Pantalla</span><div class="segmento dos-op" role="group" aria-label="Modo de pantalla">
       <button type="button" data-accion="tema" data-valor="claro" aria-pressed="${temaActual() === 'claro'}">Clara</button>
@@ -2742,7 +2861,6 @@ function abrirAjustes() {
       <button type="button" class="btn btn-gana btn-enorme" data-accion="guardar-ajustes">Guardar ajustes</button>
       <button type="button" class="btn btn-sec btn-enorme" data-ir="clientes">${ICON.persona} Clientes (${nf.format(S.clientes.length)})</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="etiqueta-prueba">${ICON.impresora} Imprimir etiqueta de prueba</button>
-      ${S.modo === 'supabase' && navigator.bluetooth ? `<a class="btn btn-sec btn-enorme" href="impresora.html" target="_blank" rel="noopener">${ICON.impresora} Probar impresora por Bluetooth</a>` : ''}
       ${puedeDescargar() ? `<button type="button" class="btn btn-sec btn-enorme" data-accion="exportar">Descargar mis datos para Excel</button>
       <button type="button" class="btn btn-sec btn-enorme" data-accion="respaldo">Descargar respaldo completo</button>` : ''}
       <label class="btn btn-sec btn-enorme"><input type="file" accept=".json,application/json" class="oculto" id="inRespaldo">Cargar un respaldo</label>
@@ -3118,6 +3236,7 @@ document.addEventListener('click', async e => {
       if (!ctx || !ctx.canvases) { toast('Espere un momento, se están preparando las etiquetas.'); break; }
       el.disabled = true; await pdfEtiquetas(ctx.canvases); el.disabled = false; break;
     }
+    case 'imprimir-bt': if (hojaCtx && hojaCtx.lista) { el.disabled = true; await imprimirBluetooth(hojaCtx.lista, el); el.disabled = false; } break;
     case 'imprimir-directo': {
       const ctx = hojaCtx;
       if (!ctx || !ctx.canvases) { toast('Espere un momento, se están preparando las etiquetas.'); break; }
