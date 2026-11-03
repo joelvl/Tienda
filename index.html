@@ -58,7 +58,7 @@ b,strong{font-weight:700}
 .app{max-width:1080px;margin:0 auto;padding:0 16px calc(110px + env(safe-area-inset-bottom,0px))}
 .angosto{max-width:680px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 4px}
-.marca-tienda{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;min-width:0}
+.marca-tienda{appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:700;font-size:20px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;min-height:48px;padding:0 8px 0 0;border-radius:12px}
 .marca-tienda #nombreTienda{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .logo{width:38px;height:38px;border-radius:11px;background:var(--marca);color:var(--marca-tinta);display:grid;place-items:center;flex:none}
 .logo svg{width:22px;height:22px}
@@ -66,7 +66,7 @@ b,strong{font-weight:700}
 .ico{width:24px;height:24px;flex:none}
 
 /* navegación */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(7,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--superficie);border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tab{position:relative;appearance:none;border:0;background:none;color:var(--tinta-suave);font:inherit;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:66px;padding:8px 2px;cursor:pointer}
 .tab .ico{width:26px;height:26px}
 @media (max-width:480px){.tab{font-size:12px;letter-spacing:-.2px}}
@@ -366,6 +366,10 @@ button,.btn,.chip,.tab,label.btn{touch-action:manipulation}
 /* ---------- encabezado ---------- */
 .cab-botones{display:flex;gap:2px;align-items:center}
 @media (max-width:400px){.btn-ajustes span{display:none}}
+/* Ojito: oculta ganancias y costos cuando hay clientes al frente */
+body.sin-ganancias .priv{filter:blur(9px);user-select:none;pointer-events:none}
+body.sin-ganancias .priv-todo{display:none!important}
+#btnOjito[aria-pressed="true"]{background:var(--marca-suave);color:var(--marca)}
 .btn-texto{appearance:none;border:0;background:none;color:var(--marca);font:inherit;font-weight:700;font-size:17px;min-height:44px;padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .girando.chica{width:16px;height:16px;border-width:2px;vertical-align:-3px;margin-right:6px}
 
@@ -525,8 +529,9 @@ select{appearance:none;-webkit-appearance:none;background-image:var(--chevron);b
 <body>
 <div class="app">
   <header class="top">
-    <div class="marca-tienda"><span class="logo" id="logo"></span><span id="nombreTienda">Mi tienda</span></div>
+    <button type="button" class="marca-tienda" data-ir="hoy" aria-label="Ir al inicio"><span class="logo" id="logo"></span><span id="nombreTienda">Mi tienda</span></button>
     <div class="cab-botones">
+      <button class="btn-ajustes" type="button" data-accion="ojito" id="btnOjito"></button>
       <button class="btn-ajustes" type="button" data-accion="tema" id="btnTema"></button>
       <button class="btn-ajustes" type="button" data-accion="ajustes" id="btnAjustes" aria-label="Ajustes"></button>
     </div>
@@ -633,6 +638,8 @@ const ICON = {
   mas: svg('<path d="M12 5v14M5 12h14"/>'),
   compartir: svg('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>'),
   persona: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
+  ojo: svg('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  ojoNo: svg('<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
   reloj: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   whatsapp: svg('<path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3 3z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.5-1.5-1-2-2l1-1-1-2z"/>'),
 };
@@ -695,6 +702,20 @@ function ponerTema(t) {
   document.documentElement.setAttribute('data-theme', t === 'oscuro' ? 'dark' : 'light');
   try { localStorage.setItem('mitienda:tema', t); } catch (e) { /* opcional */ }
   pintarBotonTema();
+}
+// El ojito se recuerda en este aparato
+let sinGanancias = false;
+try { sinGanancias = localStorage.getItem('mitienda:sinGanancias') === '1'; } catch (e) { sinGanancias = false; }
+function ponerOjito(v) {
+  sinGanancias = v;
+  document.body.classList.toggle('sin-ganancias', v);
+  try { localStorage.setItem('mitienda:sinGanancias', v ? '1' : '0'); } catch (e) { /* opcional */ }
+  const b = $('#btnOjito');
+  if (b) {
+    b.innerHTML = `${v ? ICON.ojoNo : ICON.ojo}<span>${v ? 'Mostrar' : 'Ocultar'}</span>`;
+    b.setAttribute('aria-pressed', String(v));
+    b.setAttribute('aria-label', v ? 'Mostrar ganancias y costos' : 'Ocultar ganancias y costos');
+  }
 }
 function pintarBotonTema() {
   const b = $('#btnTema');
@@ -1147,7 +1168,6 @@ async function descargar(nombre, data) {
 
 /* ================= NAVEGACIÓN ================= */
 const TABS = [
-  { id: 'hoy', txt: 'Hoy', ico: 'casa' },
   { id: 'agregar', txt: 'Agregar', ico: 'camara' },
   { id: 'vender', txt: 'Vender', ico: 'etiqueta' },
   { id: 'prendas', txt: 'Prendas', ico: 'percha' },
@@ -1204,7 +1224,7 @@ function htmlHoy() {
         <div class="fila"><span>Vendió hoy</span><strong>${col(suma(vHoy, p => p.precioVenta))}</strong></div>
         <p class="sub">${vHoy.length ? plural(vHoy.length, 'prenda vendida', 'prendas vendidas') : 'Todavía no hay ventas hoy'}</p>
         <hr>
-        <div class="fila"><span>Ganó hoy</span><strong class="${gHoy >= 0 ? 'verde' : 'rojo'}">${col(gHoy)}</strong></div>
+        <div class="fila"><span>Ganó hoy</span><strong class="priv ${gHoy >= 0 ? 'verde' : 'rojo'}">${col(gHoy)}</strong></div>
       </div>
       <div class="acciones">
         <button type="button" class="btn btn-marca btn-enorme" data-ir="agregar">${ICON.camara} Agregar prendas</button>
@@ -1221,7 +1241,7 @@ function htmlHoy() {
       ${htmlAvisoMejorTienda()}
       ${S.compras.length ? `<h2>Sus compras</h2>${S.compras.slice(0, 3).map(htmlCompraFila).join('')}
         ${S.compras.length > 3 ? `<button type="button" class="btn btn-sec" data-ir="compras">Ver todas las compras</button>` : ''}` : ''}
-      ${htmlMejores(vs)}
+      <div class="priv-todo">${htmlMejores(vs)}</div>
     </div></div>`;
 }
 function htmlAvisoCompraAbierta() {
@@ -1286,12 +1306,12 @@ function htmlPeriodoGanancia() {
     </div>
     <div class="periodo-totales">
       <div><span>Vendió</span><b>${col(suma(enRango, p => p.precioVenta))}</b></div>
-      <div><span>Ganó</span><b class="${g >= 0 ? 'verde' : 'rojo'}">${col(g)}</b></div>
+      <div><span>Ganó</span><b class="priv ${g >= 0 ? 'verde' : 'rojo'}">${col(g)}</b></div>
       <div><span>Prendas</span><b>${enRango.length}</b></div>
     </div>
     <div class="dias">${filas.map(f => `<div class="dia-fila ${f.futuro ? 'futuro' : ''}"><span>${esc(f.nombre)}</span>
       <span class="pista" aria-hidden="true"><span style="width:${f.g > 0 ? Math.max(3, f.g / max * 100) : 0}%"></span></span>
-      <b class="${f.g < 0 ? 'rojo' : ''}">${f.futuro ? '' : col(f.g)}</b></div>`).join('')}</div>
+      <b class="priv ${f.g < 0 ? 'rojo' : ''}">${f.futuro ? '' : col(f.g)}</b></div>`).join('')}</div>
     ${periodo.offset < 0 ? `<button type="button" class="btn btn-sec mt" data-accion="periodo-hoy">${sem ? 'Volver a esta semana' : 'Volver a este mes'}</button>` : ''}`;
 }
 function repintarPeriodo() { const el = $('#periodoGanancia'); if (el) el.innerHTML = htmlPeriodoGanancia(); }
@@ -1539,7 +1559,7 @@ function htmlAgregarInicio() {
     <div class="paso">
       <span class="etq-grande">¿De cuál compra son las prendas?</span>
       <div id="selCompraCola">${htmlSelectorCompra(sel)}</div>
-      <p class="nota mt" id="notaCompra">${esc(notaCompra())}</p>
+      <p class="nota mt priv" id="notaCompra">${esc(notaCompra())}</p>
     </div>
     <div class="inicio-fotos">
       <button type="button" class="btn btn-marca btn-gigante" data-accion="camara">${ICON.camara}<span>Tomar fotos</span></button>
@@ -1565,9 +1585,9 @@ function htmlCola() {
         <h2><span class="num" aria-hidden="true">1</span> ¿En cuánto la va a vender?</h2>
         ${htmlStepper('fPrecio', it.precio, 'Precio de venta en colones', 1000)}
         <div class="chips mt" role="group" aria-label="Precios rápidos" id="chipsPrecio">${PRECIOS_RAPIDOS.map(v => `<button type="button" class="chip" data-accion="precio-rapido" data-valor="${v}" aria-pressed="false">${col(v)}</button>`).join('')}</div>
-        ${c ? '' : `<div class="campo"><label for="fCostoItem">¿Cuánto le costó?</label><div class="dinero"><input id="fCostoItem" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${it.costoManual || ''}"></div></div>`}
+        ${c ? '' : `<div class="campo"><label for="fCostoItem">¿Cuánto le costó?</label><div class="dinero priv"><input id="fCostoItem" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${it.costoManual || ''}"></div></div>`}
         <p class="nota mt" id="notaPrecio"></p>
-        <p class="resultado" id="ganPrev" aria-live="polite"></p>
+        <p class="resultado priv" id="ganPrev" aria-live="polite"></p>
       </section>
       <section class="paso"><h2><span class="num" aria-hidden="true">2</span> Talla</h2><div id="tallaOpciones"></div></section>
       <section class="paso"><h2><span class="num" aria-hidden="true">3</span> ¿Qué es?</h2><div id="tipoOpciones"></div>
@@ -1765,7 +1785,7 @@ function htmlTag(p, paraVender) {
   const d = diasDesde(p.creada);
   let attrs = paraVender ? `data-accion="al-carrito" data-id="${esc(p.id)}"` : `data-prenda="${esc(p.id)}"`;
   let meta;
-  if (vendida) { const g = ganancia(p); meta = `<span class="meta ${g >= 0 ? 'verde' : 'rojo'}">${g >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(g))}</span>`; }
+  if (vendida) { const g = ganancia(p); meta = `<span class="meta priv ${g >= 0 ? 'verde' : 'rojo'}">${g >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(g))}</span>`; }
   else if (d >= 30) meta = `<span class="meta alerta">${d} días en la tienda</span>`;
   else meta = `<span class="meta">Código ${esc(p.codigo)}</span>`;
   const marcada = ofertaSel && ofertaSel.has(p.id);
@@ -1808,7 +1828,7 @@ function htmlFilaCarrito(x) {
       <div class="dinero"><input inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-carrito-precio="${esc(x.id)}" value="${x.precio || ''}" aria-label="Precio de venta de ${esc(x.p.descripcion)}"></div>
       <button type="button" class="btn btn-sec" data-accion="carrito-delta" data-id="${esc(x.id)}" data-valor="500" aria-label="Subir 500 colones">+</button>
     </div>
-    <p class="fc-gan ${g >= 0 ? 'verde' : 'rojo'}" data-gan="${esc(x.id)}">${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}</p>
+    <p class="fc-gan priv-todo ${g >= 0 ? 'verde' : 'rojo'}" data-gan="${esc(x.id)}">${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}</p>
   </div>`;
 }
 let firmaCarrito = '';
@@ -1845,8 +1865,8 @@ function pintarCarrito(forzar) {
     ${items.map(htmlFilaCarrito).join('')}
     <div class="ticket total-venta" role="group" aria-label="Total de la venta">
       <div class="fila"><span>Total a cobrar</span><strong id="totalCobrar"></strong></div>
-      <hr>
-      <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div>
+      <div class="priv-todo"><hr>
+      <div class="fila"><span>Gana</span><strong class="med" id="totalGana"></strong></div></div>
     </div>
     <div class="campo mt">${htmlSelector('Cliente', cli ? cli.nombre : 'Sin cliente (toque para elegir)', cli ? 'Tel. ' + telBonito(cli.telefono) : '', 'elegir-cliente')}</div>
     <div class="carrito-botones">
@@ -1860,7 +1880,7 @@ function pintarTotalesCarrito() {
   const items = itemsCarrito();
   for (const x of items) {
     const el = $(`[data-gan="${CSS.escape(x.id)}"]`);
-    if (el) { const g = x.precio - costoDe(x.p); el.className = `fc-gan ${g >= 0 ? 'verde' : 'rojo'}`; el.textContent = `${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}`; }
+    if (el) { const g = x.precio - costoDe(x.p); el.className = `fc-gan priv-todo ${g >= 0 ? 'verde' : 'rojo'}`; el.textContent = `${g >= 0 ? 'Gana' : 'Pierde'} ${col(Math.abs(g))}`; }
   }
   const total = suma(items, x => x.precio), gan = suma(items, x => x.precio - costoDe(x.p));
   const t = $('#totalCobrar'); if (t) t.textContent = col(total);
@@ -1885,7 +1905,7 @@ async function guardarVenta(btn) {
   clienteVenta = ''; guardarCarritoLocal();
   pintarCarrito(true);
   renderResultadosVenta();
-  toast(`Venta guardada${cli ? ` para ${cli.nombre}` : ''}: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}. ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`, gan >= 0 ? 'bien' : '');
+  toast(`Venta guardada${cli ? ` para ${cli.nombre}` : ''}: ${plural(items.length, 'prenda', 'prendas')} por ${col(total)}.${sinGanancias ? '' : ` ${gan >= 0 ? 'Ganó' : 'Perdió'} ${col(Math.abs(gan))}.`}`, gan >= 0 ? 'bien' : '');
 }
 function renderResultadosVenta() {
   const cont = $('#resVenta');
@@ -1902,7 +1922,7 @@ function renderResultadosVenta() {
   if (vh) {
     const vs = vendidas().filter(p => p.fechaVenta >= inicioDia(Date.now())).sort((a, b) => b.fechaVenta - a.fechaVenta);
     vh.innerHTML = vs.length ? vs.map(p => `<div class="fila-vendida">${htmlFotoMini(p)}
-      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Vendida en ${col(p.precioVenta)}, ${ganancia(p) >= 0 ? 'ganó' : 'perdió'} <span class="${ganancia(p) >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(ganancia(p)))}</span></span></span>
+      <span><b>${esc(p.descripcion)}</b><br><span class="nota">Vendida en ${col(p.precioVenta)}<span class="priv-todo">, ${ganancia(p) >= 0 ? 'ganó' : 'perdió'} <span class="${ganancia(p) >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(ganancia(p)))}</span></span></span></span>
       <button type="button" class="btn btn-sec" data-accion="deshacer-venta" data-id="${esc(p.id)}">Deshacer</button></div>`).join('')
       : `<p class="nota">Todavía no ha vendido nada hoy.</p>`;
   }
@@ -2280,7 +2300,7 @@ function pintarDescuento() {
   const ps = ctx.ids.map(buscar).filter(Boolean);
   const antes = suma(ps, p => p.precio), despues = suma(ps, p => precioOferta(p.precio, d));
   cont.innerHTML = `<div class="ticket"><div class="fila"><span>Con ${d} % de descuento</span><strong>${col(despues)}</strong></div>
-      <p class="nota">Antes ${col(antes)}${ps.length > 1 ? ' entre todas' : ''}. Ganaría ${col(despues - suma(ps, costoDe))}.</p></div>
+      <p class="nota">Antes ${col(antes)}${ps.length > 1 ? ' entre todas' : ''}.<span class="priv-todo"> Ganaría ${col(despues - suma(ps, costoDe))}.</span></p></div>
     <ul class="lista-oferta">${ps.slice(0, 8).map(p => `<li><span>${esc(p.descripcion)}</span><span><s class="antes">${col(p.precio)}</s> <b class="oferta">${col(precioOferta(p.precio, d))}</b></span></li>`).join('')}</ul>
     ${ps.length > 8 ? `<p class="nota">y ${ps.length - 8} más</p>` : ''}`;
 }
@@ -2308,7 +2328,7 @@ function htmlProgreso(c, st) {
   const pct = c.costo > 0 ? Math.min(100, Math.round(st.recuperado / c.costo * 100)) : 100;
   const ok = st.balance >= 0;
   return `<span class="prog ${ok ? '' : 'falta'}" role="progressbar" aria-label="Recuperado de lo que pagó" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
-    <span>${ok ? `Ya recuperó lo que pagó y va ganando <b class="verde">${col(st.balance)}</b>.` : `Ha recuperado ${col(st.recuperado)}. Le faltan <b>${col(-st.balance)}</b> para recuperar lo que pagó.`}</span>`;
+    <span class="priv">${ok ? `Ya recuperó lo que pagó y va ganando <b class="verde">${col(st.balance)}</b>.` : `Ha recuperado ${col(st.recuperado)}. Le faltan <b>${col(-st.balance)}</b> para recuperar lo que pagó.`}</span>`;
 }
 function textoCantidad(c, st) {
   return c.cantidad > 0
@@ -2334,7 +2354,7 @@ function htmlResumenCompras() {
     <div class="fila"><span>Ha invertido</span><strong class="med">${col(invertido)}</strong></div>
     <div class="fila"><span>Ha vendido</span><strong class="med">${col(vendido)}</strong></div>
     <hr>
-    <div class="fila"><span>${bal >= 0 ? 'Va ganando' : 'Le falta recuperar'}</span><strong class="${bal >= 0 ? 'verde' : ''}">${col(Math.abs(bal))}</strong></div>
+    <div class="fila"><span>${bal >= 0 ? 'Va ganando' : 'Le falta recuperar'}</span><strong class="priv ${bal >= 0 ? 'verde' : ''}">${col(Math.abs(bal))}</strong></div>
     <p class="sub">Tiene ${plural(disp.length, 'prenda', 'prendas')} en la tienda que valen ${col(suma(disp, p => p.precio))} a precio de etiqueta.</p>
   </div>`;
 }
@@ -2420,8 +2440,8 @@ function abrirCompra(id) {
   abrirHoja(`<h2>${esc(c.nombre)}</h2>
     <p class="nota">Comprada el ${fLarga.format(c.fecha)}${tiendaDeCompra(c) ? ` en ${esc(tiendaDeCompra(c).nombre)}` : ''}.${c.nota ? ' ' + esc(c.nota) : ''}</p>
     <dl class="cifras">
-      <div><dt>Pagó</dt><dd>${col(c.costo)}</dd></div>
-      <div><dt>Cada prenda${c.cantidad > 0 ? '' : ' (por ahora)'}</dt><dd>${col(costoUnidad(c))}</dd></div>
+      <div><dt>Pagó</dt><dd class="priv">${col(c.costo)}</dd></div>
+      <div><dt>Cada prenda${c.cantidad > 0 ? '' : ' (por ahora)'}</dt><dd class="priv">${col(costoUnidad(c))}</dd></div>
       <div><dt>Ha vendido</dt><dd>${col(st.recuperado)}</dd></div>
     </dl>
     <div class="compra-prog">${htmlProgreso(c, st)}</div>
@@ -2464,7 +2484,7 @@ function htmlTiendaFila({ t, st }, mejor) {
     ${t.zona ? `<span class="nota">${esc(t.zona)}</span>` : ''}
     ${st.vendidasFinal ? `<span class="rinde"><span>Por cada ₡1.000 que le cuesta una prenda, la vende en</span><b class="${st.por1000 < 1000 ? 'rojo' : ''}">${col(st.por1000)}</b></span>`
       : `<span class="nota mt">${st.vendidas ? 'Cierre sus compras para ver cuánto le deja esta tienda.' : 'Todavía no ha vendido prendas de esta tienda.'}</span>`}
-    <span class="mini-cifras"><span><small>Invirtió</small><b>${col(st.invertido)}</b></span><span><small>Vendió</small><b>${col(st.vendido)}</b></span><span><small>Ganó</small><b class="${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</b></span></span>
+    <span class="mini-cifras"><span><small>Invirtió</small><b class="priv">${col(st.invertido)}</b></span><span><small>Vendió</small><b>${col(st.vendido)}</b></span><span><small>Ganó</small><b class="priv ${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</b></span></span>
     ${st.invertido ? `<span class="prog ${pct >= 100 ? '' : 'falta'}" role="progressbar" aria-label="Recuperado de lo invertido" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>
       <span class="nota">Ha recuperado el ${pct} % de lo que invirtió aquí.</span>` : ''}
     <span class="nota">${plural(st.compras.length, 'compra', 'compras')}. ${st.vendidas} de ${st.registradas} prendas vendidas${st.vendidasFinal ? `; tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse` : ''}.</span>
@@ -2480,8 +2500,8 @@ function abrirTienda(id) {
     <dl class="cifras">
       <div><dt>Invirtió</dt><dd>${col(st.invertido)}</dd></div>
       <div><dt>Vendió</dt><dd>${col(st.vendido)}</dd></div>
-      <div><dt>Ganó</dt><dd class="${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</dd></div>
-      ${st.vendidasFinal ? `<div><dt>Gana por prenda</dt><dd>${col(st.ganPorPrenda)}</dd></div>` : ''}
+      <div><dt>Ganó</dt><dd class="priv ${st.gan >= 0 ? 'verde' : 'rojo'}">${st.vendidasFinal ? col(st.gan) : '—'}</dd></div>
+      ${st.vendidasFinal ? `<div><dt>Gana por prenda</dt><dd class="priv">${col(st.ganPorPrenda)}</dd></div>` : ''}
     </dl>
     ${st.abiertas ? `<p class="nota">${plural(st.abiertas, 'compra está abierta', 'compras están abiertas')}: sus prendas no cuentan en la ganancia hasta que la cierre.</p>` : ''}
     ${st.vendidasFinal ? `<p>Por cada ₡1.000 que le cuesta una prenda de esta tienda, la vende en <b>${col(st.por1000)}</b>. Tardan ${plural(Math.round(st.dias), 'día', 'días')} en venderse, en promedio.</p>` : '<p class="nota">Cuando venda prendas de esta tienda, aquí verá cuánto le dejan.</p>'}
@@ -3015,7 +3035,7 @@ function abrirPrenda(id) {
     const d = diasDesde(p.creada);
     if (d >= 30) {
       const sug = Math.max(bajar900(p.precio * 0.8), a900(costo * 1.2));
-      if (sug < p.precio) consejo = `<div class="aviso"><p>Lleva ${d} días en la tienda. Si la rebaja a <b>${col(sug)}</b>, todavía gana <b>${col(sug - costo)}</b>.</p></div>`;
+      if (sug < p.precio) consejo = `<div class="aviso priv-todo"><p>Lleva ${d} días en la tienda. Si la rebaja a <b>${col(sug)}</b>, todavía gana <b>${col(sug - costo)}</b>.</p></div>`;
     }
   }
   abrirHoja(`${p.foto ? `<img class="detalle-foto" src="${p.foto}" alt="Foto de ${esc(p.descripcion)}">` : ''}
@@ -3023,9 +3043,9 @@ function abrirPrenda(id) {
     <h2 class="sin-margen">${esc(p.descripcion)}</h2>
     <p>${esc(detalleLinea(p))}</p>
     <dl class="cifras">
-      <div><dt>Le costó</dt><dd>${col(costo)}</dd></div>
+      <div><dt>Le costó</dt><dd class="priv">${col(costo)}</dd></div>
       <div><dt>${vendida ? 'La vendió en' : enOferta(p) ? `En oferta (−${p.descuento} %)` : 'Precio de etiqueta'}</dt><dd>${vendida ? col(p.precioVenta) : htmlPrecioOferta(p)}</dd></div>
-      <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
+      <div><dt>${vendida ? (gan >= 0 ? 'Ganó' : 'Perdió') : 'Ganaría'}</dt><dd class="priv ${gan >= 0 ? 'verde' : 'rojo'}">${col(Math.abs(gan))}</dd></div>
     </dl>
     ${apartado ? `<div class="aviso aviso-marca"><p>Está <b>apartada${esc(textoDeApartado(p))}</b>. No sale en el inventario ni en el catálogo.</p>
       <button type="button" class="btn btn-marca" data-accion="ver-apartado" data-id="${esc(apartado.id)}">${ICON.reloj} Ver el pedido</button></div>` : ''}
@@ -3057,7 +3077,7 @@ function abrirEditar(id) {
       <div class="campo"><label for="eGenero">Para</label><select id="eGenero">${GENEROS.map(g => `<option ${g === generoDe(p) ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
     </div>
     <div class="campo"><label for="eCompra">Compra</label><select id="eCompra">${opcionesCompra(p.compraId)}</select></div>
-    <div class="campo"><label for="eCosto">Le costó esta prenda</label>${htmlStepper('eCosto', costoDe(p), '', 500)}
+    <div class="campo priv"><label for="eCosto">Le costó esta prenda</label>${htmlStepper('eCosto', costoDe(p), '', 500)}
       <p class="nota mt">${p.costoFijo || !c ? 'Este costo lo escribió usted.' : `Ahora sale de repartir lo que costó la compra «${esc(c.nombre)}». Si lo cambia, queda fijo para esta prenda.`}</p>
       ${p.costoFijo && c ? `<label class="nota mt"><input type="checkbox" id="eCostoCompra"> Volver a usar el costo repartido de la compra (${col(costoUnidad(c))})</label>` : ''}</div>
     <div class="campo"><label for="ePrecio">Precio de etiqueta</label>${htmlStepper('ePrecio', p.precio, '', 1000)}</div>
@@ -3678,6 +3698,7 @@ document.addEventListener('click', async e => {
   const it = itemActual();
   switch (el.dataset.accion) {
     case 'ajustes': abrirAjustes(); break;
+    case 'ojito': ponerOjito(!sinGanancias); toast(sinGanancias ? 'Ganancias y costos ocultos. Toque el ojito para verlos.' : 'Ganancias y costos a la vista.'); break;
     case 'tema':
       ponerTema(valor || (temaActual() === 'oscuro' ? 'claro' : 'oscuro'));
       $$('[data-accion="tema"][data-valor]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valor === temaActual())));
@@ -3914,6 +3935,7 @@ async function init() {
   $('#btnDisparar').innerHTML = `${ICON.camara}<span>Tomar foto</span>`;
   $('#tabs').innerHTML = TABS.map(t => `<button type="button" class="tab" data-ir="${t.id}" aria-current="false">${ICON[t.ico]}<span>${t.txt}</span></button>`).join('');
   pintarBotonTema();
+  ponerOjito(sinGanancias);
   ir('hoy');
   const cfg = window.MI_TIENDA_CONFIG;
   if (cfg && cfg.supabaseUrl && cfg.supabaseAnonKey) { await iniciarSupabase(cfg); return; }
