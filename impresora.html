@@ -71,11 +71,15 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--superficie-2);b
     <button type="button" class="btn" id="tspl" disabled>Probar idioma TSPL</button>
     <button type="button" class="btn" id="escpos" disabled>Probar idioma ESC/POS</button>
     <button type="button" class="btn" id="zpl" disabled>Probar idioma ZPL (tipo Zebra)</button>
+    <h2>3. Probar imágenes</h2>
+    <p class="nota">La tienda manda cada etiqueta como imagen. Pruebe A y B: en una debe salir «IMAGEN A» o «IMAGEN B» en letras negras sobre blanco. Dígame cuál salió así.</p>
+    <button type="button" class="btn" id="imgA" disabled>Probar imagen A</button>
+    <button type="button" class="btn" id="imgB" disabled>Probar imagen B</button>
     <p class="nota">Pruebe uno por uno y fíjese si sale algo en la impresora. Con que uno imprima, ya se puede.</p>
   </div>
 
   <div class="caja">
-    <h2>3. Copie este informe</h2>
+    <h2>4. Copie este informe</h2>
     <p class="nota">Péguelo en el chat junto con cuál prueba imprimió (TSPL, ESC/POS, ZPL o ninguna).</p>
     <pre id="informe">Todavía no hay datos.</pre>
     <button type="button" class="btn" id="copiar">Copiar el informe</button>
@@ -131,7 +135,7 @@ async function buscar() {
     if (!candidata) { anotar('\nNo encontré por dónde mandarle datos.'); $('#soporte').innerHTML = '<p class="mal">Se conectó, pero no encontré por dónde mandarle datos.</p><p class="nota">Copie el informe de abajo y péguelo en el chat.</p>'; return; }
     E.escribir = candidata;
     anotar(`\nUsaré ${hex(candidata.service.uuid)} / ${hex(candidata.uuid)} para imprimir.`);
-    $('#tspl').disabled = $('#escpos').disabled = $('#zpl').disabled = false;
+    $('#tspl').disabled = $('#escpos').disabled = $('#zpl').disabled = $('#imgA').disabled = $('#imgB').disabled = false;
     $('#soporte').innerHTML = `<p class="ok">Conectada a «${d.name || 'la impresora'}».</p><p class="nota">Ahora pruebe las etiquetas de prueba.</p>`;
   } catch (e) {
     anotar(`\nError al buscar o conectar: ${e.name}: ${e.message}`);
@@ -202,6 +206,40 @@ $('#buscar').addEventListener('click', buscar);
 $('#tspl').addEventListener('click', e => probar('TSPL', e.currentTarget));
 $('#escpos').addEventListener('click', e => probar('ESC/POS', e.currentTarget));
 $('#zpl').addEventListener('click', e => probar('ZPL', e.currentTarget));
+// Imagen pequeña (30 × 8 mm) con el comando BITMAP de TSPL. A: bit 0 = negro; B: bit 1 = negro.
+// Si sale invertida, solo es una franja negra pequeña: no le pide mucha corriente a la impresora.
+async function probarImagen(letra, boton) {
+  boton.disabled = true;
+  const { w, h } = tamano();
+  try {
+    const W = 240, H = 64, bw = W / 8;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000'; g.font = '700 34px Arial, sans-serif'; g.textBaseline = 'middle';
+    g.fillText('IMAGEN ' + letra, 8, H / 2);
+    g.fillRect(8, H - 6, W - 16, 3);
+    const px = g.getImageData(0, 0, W, H).data;
+    const datos = new Uint8Array(bw * H).fill(letra === 'A' ? 0xff : 0x00);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (px[(y * W + x) * 4] < 128) {
+        if (letra === 'A') datos[y * bw + (x >> 3)] &= ~(0x80 >> (x & 7));
+        else datos[y * bw + (x >> 3)] |= 0x80 >> (x & 7);
+      }
+    }
+    const ini = ascii(`SIZE ${w} mm,${h} mm\r\nGAP 2 mm,0 mm\r\nDIRECTION 1\r\nCLS\r\nBITMAP 16,40,${bw},${H},0,`);
+    const fin = ascii('\r\nTEXT 16,8,"3",0,1,1,"Prueba de imagen ' + letra + '"\r\nPRINT 1,1\r\n');
+    const todo = new Uint8Array(ini.length + datos.length + fin.length);
+    todo.set(ini); todo.set(datos, ini.length); todo.set(fin, ini.length + datos.length);
+    await enviar(todo);
+    anotar(`Mandé la prueba de imagen ${letra}.`);
+  } catch (e) {
+    anotar(`Error al mandar la imagen ${letra}: ${e.name}: ${e.message}`);
+  }
+  boton.disabled = false;
+}
+$('#imgA').addEventListener('click', e => probarImagen('A', e.currentTarget));
+$('#imgB').addEventListener('click', e => probarImagen('B', e.currentTarget));
 $('#copiar').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('#informe').textContent); $('#copiar').textContent = 'Copiado. Péguelo en WhatsApp.'; }
   catch (e) { $('#copiar').textContent = 'No se pudo copiar: mantenga el dedo sobre el texto y cópielo'; }
