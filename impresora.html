@@ -167,10 +167,20 @@ async function probar(idioma, boton) {
   const { w, h } = tamano();
   try {
     if (idioma === 'TSPL') {
+      // Etiqueta de muestra a tamaño completo, con un marco hasta donde alcanza a imprimir
+      // (en la HL2200 lo impreso cae unos 3 mm a la derecha y 2 mm abajo, igual que en la tienda)
+      const A = Math.round(Math.min(w - 3, 48) * 8), B = Math.round((h - 2.5) * 8);
+      const alto = Math.max(24, B - 212);
       await enviar(ascii([
         `SIZE ${w} mm,${h} mm`, 'GAP 2 mm,0 mm', 'DIRECTION 1', 'CLS',
-        'TEXT 16,16,"3",0,1,1,"PRUEBA TSPL"',
-        'BARCODE 16,60,"128",60,1,0,2,2,"000123"',
+        `BOX 0,0,${A - 1},${B - 1},3`,
+        'TEXT 24,14,"4",0,1,1,"LALYS GLAMOUR"',
+        `BAR 16,52,${A - 32},2`,
+        'TEXT 16,62,"3",0,1,1,"Vestido largo"',
+        'TEXT 16,96,"5",0,1,1,"12 900"',
+        `BOX ${A - 96},92,${A - 16},152,3`, `TEXT ${A - 86},98,"2",0,1,1,"TALLA"`, `TEXT ${A - 68},120,"4",0,1,1,"M"`,
+        `BARCODE ${Math.round(A / 2 - 102)},164,"128",${alto},0,0,3,3,"000123"`,
+        `TEXT 16,${B - 30},"2",0,1,1,"000123"`, `TEXT ${A - 16 - 18 * 12},${B - 30},"2",0,1,1,"WhatsApp 8819 3754"`,
         'PRINT 1,1', '',
       ].join('\r\n')));
     } else if (idioma === 'ZPL') {
