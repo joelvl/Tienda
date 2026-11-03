@@ -2795,7 +2795,7 @@ const BT_PUNTOS_MM = 8;          // 203 dpi
 const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
 // En la HL2200 lo impreso cae corrido a la derecha (se pierden unos 8 mm del lado derecho) y 2 mm más abajo: se deja ese margen
 const BT_CORRIDO_X = 8, BT_CORRIDO_Y = 2.5;
-const BT = { disp: null, car: null, trozo: 180 };
+const BT = { disp: null, car: null };
 const hayBluetooth = () => !!navigator.bluetooth;
 
 async function conectarImpresora() {
@@ -2815,19 +2815,13 @@ async function conectarImpresora() {
   BT.disp = null;
   throw { code: 'bt_sin_canal' };
 }
-// Manda en pedazos; si la impresora no acepta pedazos grandes, sigue de 20 en 20 bytes
+// Manda igual que la página de prueba (que sí imprime en la HL2200): de 20 en 20 bytes, sin esperar respuesta
 async function enviarBT(bytes) {
   const c = BT.car;
-  for (let i = 0; i < bytes.length;) {
-    const parte = bytes.slice(i, i + BT.trozo);
-    try {
-      if (c.properties.write) await c.writeValueWithResponse(parte);
-      else { await c.writeValueWithoutResponse(parte); await espera(20); }
-      i += parte.length;
-    } catch (e) {
-      if (BT.trozo > 20) { BT.trozo = 20; continue; }
-      throw e;
-    }
+  for (let i = 0; i < bytes.length; i += 20) {
+    const parte = bytes.slice(i, i + 20);
+    if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) { await c.writeValueWithoutResponse(parte); await espera(15); }
+    else await c.writeValue(parte);
   }
 }
 // Imagen a 1 bit para el comando BITMAP de TSPL (0 = punto negro)
@@ -2852,16 +2846,26 @@ async function imprimirBluetooth(lista, boton) {
     for (let i = 0; i < lista.length; i++) {
       boton.textContent = lista.length > 1 ? `Imprimiendo ${i + 1} de ${lista.length}…` : 'Imprimiendo…';
       const b = bitsTspl(await dibujarEtiqueta(lista[i], BT_PUNTOS_MM, ancho, alto));
-      const ini = ascii(`CLS\r\nBITMAP 0,0,${b.bw},${b.H},0,`), fin = ascii('\r\nPRINT 1,1\r\n');
-      const todo = new Uint8Array(ini.length + b.out.length + fin.length);
-      todo.set(ini); todo.set(b.out, ini.length); todo.set(fin, ini.length + b.out.length);
+      // Solo se mandan las franjas que tienen algo; las filas en blanco se saltan (menos datos, imprime más rápido)
+      const partes = [ascii('CLS\r\n')];
+      const vacia = y => b.out.subarray(y * b.bw, (y + 1) * b.bw).every(v => v === 0xff);
+      for (let y = 0; y < b.H;) {
+        if (vacia(y)) { y++; continue; }
+        let fin = y; while (fin < b.H && (!vacia(fin) || (fin + 1 < b.H && !vacia(fin + 1)))) fin++;
+        partes.push(ascii(`BITMAP 0,${y},${b.bw},${fin - y},0,`), b.out.slice(y * b.bw, fin * b.bw), ascii('\r\n'));
+        y = fin;
+      }
+      partes.push(ascii('PRINT 1,1\r\n'));
+      const todo = new Uint8Array(partes.reduce((n, x) => n + x.length, 0));
+      partes.reduce((n, x) => { todo.set(x, n); return n + x.length; }, 0);
       await enviarBT(todo);
+      if (i < lista.length - 1) await espera(800);
     }
     toast(lista.length > 1 ? `Listo: se mandaron ${lista.length} etiquetas a la impresora.` : 'Listo: se mandó la etiqueta a la impresora.', 'bien');
   } catch (e) {
     if (e && e.name === 'NotFoundError') { /* cerró la lista sin elegir */ }
     else if (e && e.code === 'bt_sin_canal') toast('Se conectó, pero esa impresora no deja mandarle etiquetas. ¿Eligió la impresora correcta?', 'mal');
-    else { BT.car = null; toast('No se pudo imprimir. Revise que la impresora esté encendida y que la app Diabel esté cerrada, y vuelva a intentar.', 'mal'); }
+    else { BT.car = null; console.error(e); toast(`No se pudo imprimir. Revise que la impresora esté encendida y que la app Diabel esté cerrada, y vuelva a intentar. (${(e && (e.message || e.code)) || e})`, 'mal'); }
   }
   boton.innerHTML = antes;
 }
