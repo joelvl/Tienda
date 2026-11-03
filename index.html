@@ -624,6 +624,7 @@ const RANGOS_PRECIO = [[0, 4999, 'Menos de ₡5 000'], [5000, 9999, '₡5 000 a 
 const muestraColor = n => (COLORES.find(c => c[0] === n) || [n, 'transparent'])[1];
 const TAMANOS = {
   '50x30': { w: 50, h: 30, nombre: '50 × 30 mm' },
+  '50x40': { w: 50, h: 40, nombre: '50 × 40 mm' },
   '40x30': { w: 40, h: 30, nombre: '40 × 30 mm' },
   '57x40': { w: 57, h: 40, nombre: '57 × 40 mm' },
   '51x25': { w: 50.8, h: 25.4, nombre: '2 × 1 pulgadas' },
@@ -2633,39 +2634,49 @@ function recortar(g, t, ancho) {
   while (t.length > 1 && g.measureText(t + '…').width > ancho) t = t.slice(0, -1);
   return t.trim() + '…';
 }
-// Medidas pensadas en mm para una etiqueta de 30 mm de alto; las demás se escalan.
-// k = puntos por mm (16 en pantalla y PDF, 8 en la impresora térmica); anchoMm = lo que cabe en el cabezal.
-async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0) {
+// Medidas en "u": 1 u = 1 mm en una etiqueta de 48 × 30 mm; en otras se escala según lo que quepa.
+// Si la etiqueta es más alta, el espacio de sobra se reparte entre las partes y el código de barras crece un poco.
+// k = puntos por mm (16 en pantalla y PDF, 8 en la impresora térmica); anchoMm y altoMm = lo que se alcanza a imprimir.
+async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0, altoMm = 0) {
   await fuentesListas();
-  const t = tamanoEtiqueta(), u = t.h / 30 * k;
-  const W = Math.round((anchoMm || t.w) * k), H = Math.round(t.h * k);
+  const t = tamanoEtiqueta();
+  const wMm = anchoMm || t.w, hMm = altoMm || t.h;
+  const u = Math.min(hMm / 30, wMm / 48) * k;
+  const W = Math.round(wMm * k), H = Math.round(hMm * k);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
   const fam = '"Atkinson Hyperlegible", Arial, sans-serif';
-  const m = 1.5 * k, ancho = W - 2 * m;
+  const m = 1.5 * u, ancho = W - 2 * m;
   const caja = (x, y, w, h, r) => { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); };
   const espaciado = px => { if ('letterSpacing' in g) g.letterSpacing = px + 'px'; };
+  // Achica la letra hasta que el texto quepa en el ancho dado
+  const ajustar = (txt, peso, tam, min, w) => { g.font = `${peso} ${tam}px ${fam}`; while (g.measureText(txt).width > w && tam > min) { tam -= 0.1 * u; g.font = `${peso} ${tam}px ${fam}`; } return tam; };
+
+  const hBanda = 4.6 * u, hDesc = 3.6 * u, hPrecio = 6.2 * u, sPie = 2.3 * u;
+  const fijo = 1.2 * u + hBanda + 0.9 * u + hDesc + hPrecio + 1 * u + 0.6 * u + sPie + 1.3 * u;
+  let altoBarras = H - fijo, extra = 0;
+  if (altoBarras > 10 * u) { extra = (altoBarras - 10 * u) / 4; altoBarras = 10 * u; }
 
   // Franja negra con el nombre de la tienda
   let y = 1.2 * u;
-  const hBanda = 4.6 * u;
   g.fillStyle = '#000'; caja(m, y, ancho, hBanda, 0.9 * u); g.fill();
   g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `700 ${3 * u}px ${fam}`; espaciado(0.3 * u);
-  g.fillText(recortar(g, (S.config.nombre || 'Mi tienda').toUpperCase(), ancho - 2 * u), W / 2, y + hBanda / 2 + 0.15 * u);
+  const nombre = (S.config.nombre || 'Mi tienda').toUpperCase();
+  espaciado(0.3 * u);
+  ajustar(nombre, 700, 3 * u, 2 * u, ancho - 2.5 * u);
+  g.fillText(recortar(g, nombre, ancho - 2.5 * u), W / 2, y + hBanda / 2 + 0.15 * u);
   espaciado(0);
-  y += hBanda + 0.9 * u;
+  y += hBanda + 0.9 * u + extra;
 
   // Nombre de la prenda
   g.fillStyle = '#000'; g.textAlign = 'left'; g.textBaseline = 'top';
   g.font = `400 ${3 * u}px ${fam}`;
   g.fillText(recortar(g, p.descripcion || p.tipo, ancho), m, y);
-  y += 3.6 * u;
+  y += hDesc + extra;
 
   // Precio grande y, a la derecha, la talla en un recuadro
-  const hPrecio = 6.2 * u;
   let wTalla = 0;
   if (p.talla) {
     g.font = `700 ${3.6 * u}px ${fam}`;
@@ -2681,36 +2692,34 @@ async function dibujarEtiqueta(p, k = PXMM, anchoMm = 0) {
     g.fillText(recortar(g, p.talla, wTalla - 1.2 * u), xT + wTalla / 2, y + 2.3 * u);
     g.textAlign = 'left';
   }
-  let sPrecio = 6.6 * u;
-  const libre = ancho - (wTalla ? wTalla + 1.5 * u : 0);
-  g.font = `700 ${sPrecio}px ${fam}`;
-  while (g.measureText(col(p.precio)).width > libre && sPrecio > 3 * u) { sPrecio -= 0.2 * u; g.font = `700 ${sPrecio}px ${fam}`; }
+  const sPrecio = ajustar(col(p.precio), 700, 6.6 * u, 3 * u, ancho - (wTalla ? wTalla + 1.5 * u : 0));
   g.textBaseline = 'alphabetic';
   g.fillText(col(p.precio), m - 0.2 * u, y + hPrecio / 2 + 0.36 * sPrecio);
-  y += hPrecio + 1 * u;
+  y += hPrecio + 1 * u + extra;
 
-  // Abajo: el código y el WhatsApp de la tienda
-  const sPie = 2.3 * u, yPie = H - 1.3 * u;
-  const tel = S.config.whatsapp ? 'WhatsApp ' + telBonito(S.config.whatsapp) : '';
-  g.font = `700 ${sPie}px ${fam}`;
-  if (tel) {
-    g.fillText(String(p.codigo), m, yPie);
-    g.textAlign = 'right'; g.fillText(recortar(g, tel, ancho - g.measureText(String(p.codigo)).width - 2 * u), W - m, yPie);
-  } else { g.textAlign = 'center'; g.fillText(String(p.codigo), W / 2, yPie); }
-  g.textAlign = 'left';
-
-  // Código de barras en lo que queda
-  const altoBarras = Math.floor(yPie - sPie - 0.6 * u - y);
+  // Código de barras
   if (window.JsBarcode && altoBarras > 4 * k) {
     let modulo = Math.max(2, Math.round(0.375 * k)), bc = null;
     do {
       bc = document.createElement('canvas');
-      window.JsBarcode(bc, String(p.codigo), { format: 'CODE128', width: modulo, height: altoBarras, displayValue: false, margin: 0, background: '#ffffff', lineColor: '#000000' });
+      window.JsBarcode(bc, String(p.codigo), { format: 'CODE128', width: modulo, height: Math.floor(altoBarras), displayValue: false, margin: 0, background: '#ffffff', lineColor: '#000000' });
       modulo--;
     } while (bc.width > ancho && modulo >= 2);
     g.imageSmoothingEnabled = false;
     g.drawImage(bc, Math.round((W - bc.width) / 2), Math.round(y));
   }
+
+  // Abajo: el código y el WhatsApp de la tienda
+  const yPie = H - 1.3 * u;
+  const cod = String(p.codigo), tel = S.config.whatsapp ? 'WhatsApp ' + telBonito(S.config.whatsapp) : '';
+  if (tel) {
+    let s = sPie;
+    g.font = `700 ${s}px ${fam}`;
+    while (g.measureText(cod).width + 2 * u + g.measureText(tel).width > ancho && s > 1.7 * u) { s -= 0.1 * u; g.font = `700 ${s}px ${fam}`; }
+    g.fillText(cod, m, yPie);
+    g.textAlign = 'right'; g.fillText(recortar(g, tel, ancho - g.measureText(cod).width - 2 * u), W - m, yPie);
+  } else { g.font = `700 ${sPie}px ${fam}`; g.textAlign = 'center'; g.fillText(cod, W / 2, yPie); }
+  g.textAlign = 'left';
   return c;
 }
 async function abrirEtiquetas(lista, titulo) {
@@ -2772,6 +2781,8 @@ const BT_SERVICIOS = [
 ];
 const BT_PUNTOS_MM = 8;          // 203 dpi
 const BT_ANCHO_CABEZAL = 48;     // mm que alcanza a imprimir el cabezal
+// En la HL2200 lo impreso cae unos 3 mm a la derecha y 2 mm más abajo del borde de la etiqueta: se deja ese margen
+const BT_CORRIDO_X = 3, BT_CORRIDO_Y = 2.5;
 const BT = { disp: null, car: null, trozo: 180 };
 const hayBluetooth = () => !!navigator.bluetooth;
 
@@ -2823,12 +2834,12 @@ async function imprimirBluetooth(lista, boton) {
   boton.textContent = 'Conectando con la impresora…';
   try {
     await conectarImpresora();
-    const t = tamanoEtiqueta(), ancho = Math.min(t.w, BT_ANCHO_CABEZAL);
+    const t = tamanoEtiqueta(), ancho = Math.min(t.w - BT_CORRIDO_X, BT_ANCHO_CABEZAL), alto = t.h - BT_CORRIDO_Y;
     const ascii = s => new TextEncoder().encode(s);
     await enviarBT(ascii(`SIZE ${t.w} mm,${t.h} mm\r\nGAP 2 mm,0 mm\r\nDIRECTION 1\r\n`));
     for (let i = 0; i < lista.length; i++) {
       boton.textContent = lista.length > 1 ? `Imprimiendo ${i + 1} de ${lista.length}…` : 'Imprimiendo…';
-      const b = bitsTspl(await dibujarEtiqueta(lista[i], BT_PUNTOS_MM, ancho));
+      const b = bitsTspl(await dibujarEtiqueta(lista[i], BT_PUNTOS_MM, ancho, alto));
       const ini = ascii(`CLS\r\nBITMAP 0,0,${b.bw},${b.H},0,`), fin = ascii('\r\nPRINT 1,1\r\n');
       const todo = new Uint8Array(ini.length + b.out.length + fin.length);
       todo.set(ini); todo.set(b.out, ini.length); todo.set(fin, ini.length + b.out.length);
