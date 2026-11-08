@@ -53,8 +53,8 @@ jobs:
       - name: Guardar la clave del conector de Claude
         env:
           MCP_CLAVE: ${{ secrets.MCP_CLAVE }}
-          # La página donde se entra con el usuario de la tienda (GitHub Pages de este repositorio)
-          MCP_LOGIN_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/conectar.html
+          # La página donde se entra con el usuario de la tienda (GitHub Pages, con el dominio propio)
+          MCP_LOGIN_URL: https://lalysglamour.com/conectar.html
         run: |
           if [ -n "$MCP_CLAVE" ]; then
             supabase secrets set MCP_CLAVE="$MCP_CLAVE" MCP_LOGIN_URL="$MCP_LOGIN_URL" --project-ref "$PROJECT_REF" --yes

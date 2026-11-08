@@ -12,7 +12,7 @@ const URL_SB = Deno.env.get("SUPABASE_URL") ?? "";
 const LLAVE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const CFG: Config = {
   base: `${URL_SB}/functions/v1/mcp`,
-  login: Deno.env.get("MCP_LOGIN_URL") || "https://joelvl.github.io/Tienda/conectar.html",
+  login: Deno.env.get("MCP_LOGIN_URL") || "https://lalysglamour.com/conectar.html",
   clave: Deno.env.get("MCP_CLAVE") ?? "",
   urlSb: URL_SB,
   llavePublica: Deno.env.get("SUPABASE_ANON_KEY") || LLAVE,

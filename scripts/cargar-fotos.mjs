@@ -10,7 +10,7 @@
 //   --preciso           usar el modelo preciso de la IA (más lento)
 //   --datos archivo.json  usar datos ya revisados en lugar de la IA: { "foto.jpg": { tipo, color, descripcion, talla, precio } }
 //                         y, para corregir prendas que ya existen: { "codigo:000007": { tipo, color, genero, descripcion, talla } }
-//   --sitio URL         dirección de la tienda publicada (por defecto https://joelvl.github.io/Tienda/)
+//   --sitio URL         dirección de la tienda publicada (por defecto https://lalysglamour.com/)
 //
 // Si se corta, se puede volver a correr: las fotos ya subidas quedan anotadas en
 // .carga-tienda.json dentro de la carpeta de fotos y no se repiten.
@@ -25,7 +25,7 @@ const args = process.argv.slice(2);
 const opcion = n => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const carpeta = args.find((a, i) => !a.startsWith("--") && !["--compra", "--sitio", "--datos"].includes(args[i - 1]));
 const prueba = args.includes("--prueba"), precioUno = args.includes("--precio-uno"), preciso = args.includes("--preciso");
-const sitio = opcion("--sitio") || "https://joelvl.github.io/Tienda/";
+const sitio = opcion("--sitio") || "https://lalysglamour.com/";
 const datos = opcion("--datos") ? JSON.parse(readFileSync(opcion("--datos"), "utf8")) : null;
 if (!carpeta || !existsSync(carpeta)) { console.error('Uso: node scripts/cargar-fotos.mjs "/ruta/a/las/fotos" [--prueba] [--compra "nombre"] [--precio-uno]'); process.exit(1); }
 
