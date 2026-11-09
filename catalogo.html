@@ -64,7 +64,7 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .foto img{width:100%;height:100%;object-fit:cover;display:block}
 .ver-grande{appearance:none;border:0;padding:0;margin:0;width:100%;height:100%;background:none;cursor:zoom-in;display:block}
 .grande{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;cursor:zoom-out}
-.grande img{max-width:100%;max-height:calc(100vh - 110px);object-fit:contain;border-radius:10px;background:#fff}
+.grande img{max-width:100%;max-height:calc(100vh - 110px);min-height:min(calc(100vh - 110px),640px);object-fit:contain;border-radius:10px;background:#fff}
 .cerrar-grande{appearance:none;border:0;border-radius:999px;background:#fff;color:#221F3B;font:inherit;font-weight:700;min-height:48px;padding:0 24px;cursor:pointer}
 .foto svg{width:48px;height:48px}
 .info{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;flex:1}
@@ -144,10 +144,10 @@ function filtradas() {
 function chips(cont, valores, actual, campo) {
   cont.innerHTML = [['', 'Todo'], ...valores.map(v => [v, v])].map(([v, t]) => `<button type="button" class="chip" data-${campo}="${esc(v)}" aria-pressed="${v === actual}">${esc(t)}</button>`).join('');
 }
-// La miniatura en la lista; si hay foto grande, al tocarla se ve en buena calidad
+// La miniatura en la lista; al tocarla se ve en grande (en buena calidad si hay foto grande, si no la miniatura)
 function htmlFoto(codigo, desc) {
   const img = `<img src="${esc(E.fotos.get(codigo))}" alt="${esc(desc)}">`;
-  return E.grandes.has(codigo) ? `<button type="button" class="ver-grande" data-grande="${esc(codigo)}" aria-label="Ver la foto grande de ${esc(desc)}">${img}</button>` : img;
+  return `<button type="button" class="ver-grande" data-grande="${esc(codigo)}" aria-label="Ver la foto grande de ${esc(desc)}">${img}</button>`;
 }
 function pintar() {
   const cuentaTipo = new Map();
@@ -216,7 +216,7 @@ async function traerFotos() {
 
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-grande]');
-  if (g) { const p = E.prendas.find(x => x.codigo === g.dataset.grande); $('#grandeImg').src = E.grandes.get(g.dataset.grande); $('#grandeImg').alt = p ? p.descripcion : ''; $('#grande').hidden = false; return; }
+  if (g) { const p = E.prendas.find(x => x.codigo === g.dataset.grande); $('#grandeImg').src = E.grandes.get(g.dataset.grande) || E.fotos.get(g.dataset.grande); $('#grandeImg').alt = p ? p.descripcion : ''; $('#grande').hidden = false; return; }
   if (e.target.closest('#grande')) { $('#grande').hidden = true; $('#grandeImg').removeAttribute('src'); return; }
   const t = e.target.closest('[data-tipo],[data-talla],#verMas');
   if (!t) return;
