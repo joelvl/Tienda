@@ -73,6 +73,11 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .precio s{display:block;font-size:16px;font-weight:400;color:var(--tinta-suave);text-decoration-thickness:2px}
 .prenda{position:relative}
 .sello{position:absolute;top:8px;left:8px;background:var(--marca);color:var(--marca-tinta);font-weight:700;font-size:16px;padding:4px 10px;border-radius:8px}
+/* Vendidas de los últimos 15 días: siguen a la vista, con la etiqueta encima de la foto */
+.sello-vendida{position:absolute;top:10px;left:10px;background:#221F3B;color:#fff;font-weight:800;font-size:17px;letter-spacing:.06em;text-transform:uppercase;padding:6px 12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none}
+.prenda.vendida .foto img{filter:grayscale(.35);opacity:.8}
+.prenda.vendida .precio{color:var(--tinta-suave)}
+.btn-vendida{background:var(--superficie-2);color:var(--tinta-suave);cursor:default}
 .nombre{font-weight:700;overflow-wrap:anywhere}
 .meta{color:var(--tinta-suave);font-size:15px}
 .quiero{margin-top:auto;padding-top:10px}
@@ -128,7 +133,7 @@ function enlaceQuiero(p) {
 }
 // Ofertas: el precio con descuento se redondea a los ₡100, igual que en la tienda
 const OFERTAS = '_ofertas';
-const enOferta = p => Number(p.descuento) > 0;
+const enOferta = p => !p.vendida && Number(p.descuento) > 0;
 const precioActual = p => enOferta(p) ? Math.round((Number(p.precio) || 0) * (100 - p.descuento) / 10000) * 100 : (Number(p.precio) || 0);
 const meta = p => [p.talla ? 'Talla ' + p.talla : '', p.color].filter(Boolean).join(' · ');
 function filtradas() {
@@ -158,17 +163,19 @@ function pintar() {
   $('#zonaTallas').hidden = tallas.length < 2;
   chips($('#tallas'), tallas, E.talla, 'talla');
   const lista = filtradas();
-  $('#cuenta').textContent = !E.prendas.length ? '' : lista.length === 1 ? '1 prenda' : `${lista.length} prendas`;
+  const nVendidas = lista.filter(p => p.vendida).length, nDisp = lista.length - nVendidas;
+  $('#cuenta').textContent = !E.prendas.length ? '' : (nDisp === 1 ? '1 prenda' : `${nDisp} prendas`) + (nVendidas ? ` · ${nVendidas} ${nVendidas === 1 ? 'vendida' : 'vendidas'} hace poco` : '');
   if (!E.prendas.length) { $('#grid').innerHTML = ''; $('#pie').innerHTML = '<div class="vacio">Por ahora no hay prendas a la venta. Vuelva pronto.</div>'; return; }
   if (!lista.length) { $('#grid').innerHTML = ''; $('#pie').innerHTML = '<div class="vacio">No hay prendas con esa búsqueda.</div>'; return; }
   $('#grid').innerHTML = lista.slice(0, E.mostrar).map(p => {
-    const f = E.fotos.get(p.codigo), wa = enlaceQuiero(p);
-    return `<article class="prenda">
+    const f = E.fotos.get(p.codigo), wa = p.vendida ? '' : enlaceQuiero(p);
+    return `<article class="prenda${p.vendida ? ' vendida' : ''}">
       <div class="foto" data-codigo="${esc(p.conFoto ? p.codigo : '')}">${f ? htmlFoto(p.codigo, p.descripcion) : PERCHA}</div>
-      ${enOferta(p) ? `<span class="sello">−${esc(p.descuento)} %</span>` : ''}
+      ${p.vendida ? '<span class="sello-vendida">Vendida</span>' : enOferta(p) ? `<span class="sello">−${esc(p.descuento)} %</span>` : ''}
       <div class="info"><span class="precio">${enOferta(p) ? `<s aria-label="Antes ${col(p.precio)}">${col(p.precio)}</s><span class="oferta">${col(precioActual(p))}</span>` : col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
         <span class="meta">${esc(meta(p))}</span><span class="meta">Código ${esc(p.codigo)}</span>
-        ${wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener">${WA} La quiero</a></div>` : ''}</div>
+        ${p.vendida ? '<div class="quiero"><span class="btn btn-vendida">Ya se vendió</span></div>'
+          : wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener">${WA} La quiero</a></div>` : ''}</div>
     </article>`;
   }).join('');
   $('#pie').innerHTML = lista.length > E.mostrar ? `<button type="button" class="btn mas" id="verMas">Ver más prendas (${lista.length - E.mostrar})</button>` : '';
