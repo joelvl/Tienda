@@ -124,6 +124,31 @@ async function rpc(nombre, cuerpo) {
   if (!r.ok) throw new Error(`${nombre}: ${r.status}`);
   return r.json();
 }
+// Visitas: se anota que este aparato entró, tocó «La quiero» o abrió una foto. Sin nombre ni número:
+// el aparato es un código al azar guardado en este navegador. Si algo falla, el catálogo sigue igual.
+const APARATO = (() => {
+  let a = '';
+  try { a = localStorage.getItem('catalogo-aparato') || ''; } catch (e) {}
+  if (!/^[a-z0-9]{8,32}$/.test(a)) {
+    const b = new Uint8Array(16);
+    try { crypto.getRandomValues(b); } catch (e) { for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256); }
+    a = [...b].map(x => (x % 36).toString(36)).join('');
+    try { localStorage.setItem('catalogo-aparato', a); } catch (e) {}
+  }
+  return a;
+})();
+// Si en este navegador está abierta la tienda (personal), se marca para no contarlo como cliente
+const DE_TIENDA = (() => { try { return !!localStorage.getItem('mitienda-sesion'); } catch (e) { return false; } })();
+function anotar(tipo, codigo) {
+  try {
+    const cfg = window.MI_TIENDA_CONFIG;
+    if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+    const h = { apikey: cfg.supabaseAnonKey, 'Content-Type': 'application/json' };
+    if (cfg.supabaseAnonKey.startsWith('eyJ')) h.Authorization = 'Bearer ' + cfg.supabaseAnonKey;
+    fetch(`${cfg.supabaseUrl}/rest/v1/rpc/catalogo_evento`, { method: 'POST', headers: h, keepalive: true,
+      body: JSON.stringify({ p_aparato: APARATO, p_tipo: tipo, p_codigo: codigo || null, p_de_tienda: DE_TIENDA }) }).catch(() => {});
+  } catch (e) {}
+}
 const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return d.length === 8 ? '506' + d : d; };
 function enlaceQuiero(p) {
   const tel = telWhatsApp(E.tienda.whatsapp);
@@ -175,7 +200,7 @@ function pintar() {
       <div class="info"><span class="precio">${enOferta(p) ? `<s aria-label="Antes ${col(p.precio)}">${col(p.precio)}</s><span class="oferta">${col(precioActual(p))}</span>` : col(p.precio)}</span><span class="nombre">${esc(p.descripcion)}</span>
         <span class="meta">${esc(meta(p))}</span><span class="meta">Código ${esc(p.codigo)}</span>
         ${p.vendida ? '<div class="quiero"><span class="btn btn-vendida">Ya se vendió</span></div>'
-          : wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener">${WA} La quiero</a></div>` : ''}</div>
+          : wa ? `<div class="quiero"><a class="btn" href="${wa}" target="_blank" rel="noopener" data-quiero="${esc(p.codigo)}">${WA} La quiero</a></div>` : ''}</div>
     </article>`;
   }).join('');
   $('#pie').innerHTML = lista.length > E.mostrar ? `<button type="button" class="btn mas" id="verMas">Ver más prendas (${lista.length - E.mostrar})</button>` : '';
@@ -215,8 +240,10 @@ async function traerFotos() {
 }
 
 document.addEventListener('click', e => {
+  const q = e.target.closest('[data-quiero]');
+  if (q) { anotar('quiero', q.dataset.quiero); return; }   // el enlace sigue y abre WhatsApp
   const g = e.target.closest('[data-grande]');
-  if (g) { const p = E.prendas.find(x => x.codigo === g.dataset.grande); $('#grandeImg').src = E.grandes.get(g.dataset.grande) || E.fotos.get(g.dataset.grande); $('#grandeImg').alt = p ? p.descripcion : ''; $('#grande').hidden = false; return; }
+  if (g) { anotar('foto', g.dataset.grande); const p = E.prendas.find(x => x.codigo === g.dataset.grande); $('#grandeImg').src = E.grandes.get(g.dataset.grande) || E.fotos.get(g.dataset.grande); $('#grandeImg').alt = p ? p.descripcion : ''; $('#grande').hidden = false; return; }
   if (e.target.closest('#grande')) { $('#grande').hidden = true; $('#grandeImg').removeAttribute('src'); return; }
   const t = e.target.closest('[data-tipo],[data-talla],#verMas');
   if (!t) return;
@@ -238,6 +265,7 @@ async function iniciar() {
     $('#nombre').textContent = E.tienda.nombre || 'Catálogo';
     $('#sub').textContent = telWhatsApp(E.tienda.whatsapp) ? 'Toque «La quiero» y le escribimos por WhatsApp' : 'Prendas disponibles';
     pintar();
+    anotar('visita');
   } catch (e) {
     console.warn(e);
     $('#cuenta').textContent = '';
