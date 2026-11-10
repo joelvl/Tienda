@@ -249,6 +249,16 @@ th{font-size:15px;color:var(--tinta-suave)}
 .cifras div{background:var(--superficie);border-radius:12px;padding:10px 14px}
 .cifras dt{font-size:15px;color:var(--tinta-suave)}
 .cifras dd{margin:0;font-size:24px;font-weight:700}
+/* ---------- visitas del catálogo ---------- */
+.dia-evento{font-size:17px;color:var(--tinta-suave);margin:18px 0 6px}
+.fila-evento{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;align-items:baseline;background:var(--superficie);border-radius:12px;padding:10px 14px;margin:6px 0}
+.fila-evento time{font-variant-numeric:tabular-nums;color:var(--tinta-suave);font-size:16px}
+.fila-evento .nota{grid-column:2}
+.fila-evento.de-tienda{opacity:.6}
+.top-visita{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tinta);background:var(--superficie);border:0;border-radius:14px;padding:10px 12px;margin:8px 0}
+.top-visita img,.top-visita .sin-foto{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--superficie-2);display:grid;place-items:center;color:var(--tinta-suave)}
+button.top-visita{cursor:pointer}
+.top-visita strong{font-size:22px;font-variant-numeric:tabular-nums}
 /* ---------- clientes ---------- */
 .fila-cliente{appearance:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--tinta);background:var(--superficie);border:2px solid transparent;border-radius:14px;padding:12px 14px;margin:8px 0;cursor:pointer}
 .fila-cliente b{font-size:19px;overflow-wrap:anywhere}
@@ -1252,6 +1262,7 @@ function htmlHoy() {
         <button type="button" class="btn btn-gana btn-enorme" data-ir="vender">${ICON.etiqueta} Vender</button>
         <button type="button" class="btn btn-sec btn-enorme ancho-hoy" data-ir="apartados">${ICON.reloj} Pedidos${pedidosActivos ? ` (${nf.format(pedidosActivos)})` : ''}</button>
         <button type="button" class="btn btn-sec btn-enorme ancho-hoy" data-accion="ver-ofertas">${ICON.etiqueta} Ofertas${enOfertaHoy ? ` (${nf.format(enOfertaHoy)})` : ''}</button>
+        ${hayCatalogo() ? `<button type="button" class="btn btn-sec btn-enorme ancho-hoy" data-ir="visitas">${ICON.ojo} Visitas del catálogo</button>` : ''}
       </div>
       ${pendEtq.length ? `<div class="aviso aviso-marca"><p>Tiene <b>${plural(pendEtq.length, 'etiqueta', 'etiquetas')}</b> sin imprimir.</p>
         <button type="button" class="btn btn-marca" data-accion="imprimir-pendientes">${ICON.impresora} Imprimir etiquetas</button></div>` : ''}
@@ -1267,6 +1278,90 @@ function htmlHoy() {
         ${S.compras.length > 3 ? `<button type="button" class="btn btn-sec" data-ir="compras">Ver todas las compras</button>` : ''}` : ''}
       <div class="priv-todo">${htmlMejores(vs)}</div>
     </div></div>`;
+}
+/* ================= VISITAS DEL CATÁLOGO ================= */
+// Lo que pasa en el catálogo público: visitas, «La quiero» y fotos abiertas. Cada aparato es un código al azar.
+const visitas = { cargando: false, error: '', eventos: null, mostrar: 60, cargadoEn: 0 };
+const fHora = new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-digit' });
+const nombreAparato = a => String(a || '').slice(-4).toUpperCase();
+async function cargarVisitas() {
+  if (!(S.modo === 'supabase' && backend && backend.sb) || visitas.cargando) return;
+  visitas.cargando = true; visitas.error = ''; pintarVisitas();
+  try {
+    const desde = new Date(Date.now() - 30 * DIA).toISOString();
+    const { data, error } = await backend.sb.from('catalogo_eventos').select('creado,aparato,tipo,codigo,de_tienda')
+      .gte('creado', desde).order('creado', { ascending: false }).limit(5000);
+    if (error) throw error;
+    visitas.eventos = (data || []).map(e => ({ ...e, t: new Date(e.creado).getTime() }));
+    visitas.cargadoEn = Date.now();
+  } catch (e) { console.warn(e); visitas.error = 'No se pudieron traer las visitas. Revise el internet y toque «Actualizar».'; }
+  visitas.cargando = false; pintarVisitas();
+}
+function htmlTopVisitas(lista, nombreConteo) {
+  if (!lista.length) return `<p class="nota">Todavía nada.</p>`;
+  return lista.map(({ codigo, n, aparatos }) => {
+    const p = S.prendas.find(x => x.codigo === codigo);
+    const cuerpo = `${p ? htmlFotoMini(p) : `<span class="sin-foto">${ICON.percha}</span>`}
+      <span><b>${esc(p ? p.descripcion : 'Prenda borrada')}</b><span class="nota" style="display:block">Código ${esc(codigo)}${p && p.estado === 'vendida' ? ' · vendida' : ''} · ${plural(aparatos, 'aparato', 'aparatos')}</span></span>
+      <strong title="${esc(nombreConteo)}">${nf.format(n)}</strong>`;
+    return p ? `<button type="button" class="top-visita" data-prenda="${esc(p.id)}">${cuerpo}</button>` : `<div class="top-visita">${cuerpo}</div>`;
+  }).join('');
+}
+function topPorPrenda(evs, tipo) {
+  const m = new Map();
+  for (const e of evs) if (e.tipo === tipo && e.codigo) {
+    const x = m.get(e.codigo) || { codigo: e.codigo, n: 0, ap: new Set() };
+    x.n++; x.ap.add(e.aparato); m.set(e.codigo, x);
+  }
+  return [...m.values()].map(x => ({ codigo: x.codigo, n: x.n, aparatos: x.ap.size })).sort((a, b) => b.n - a.n || b.aparatos - a.aparatos).slice(0, 10);
+}
+function htmlVisitas() {
+  const evs = visitas.eventos;
+  if (!evs) return visitas.error ? `<div class="vacio mt"><p>${esc(visitas.error)}</p></div>` : `<div class="cargando"><span class="girando"></span> Trayendo las visitas…</div>`;
+  const clientes = evs.filter(e => !e.de_tienda);
+  const hoy0 = inicioDia(Date.now()), hace7 = hoy0 - 6 * DIA;
+  const vis = clientes.filter(e => e.tipo === 'visita');
+  const vis7 = vis.filter(e => e.t >= hace7);
+  const dias = new Map();   // aparato -> días distintos con visita (7 días)
+  for (const e of vis7) { const s = dias.get(e.aparato) || new Set(); s.add(claveDia(e.t)); dias.set(e.aparato, s); }
+  const volvieron = [...dias.values()].filter(s => s.size > 1).length;
+  const quiero7 = clientes.filter(e => e.tipo === 'quiero' && e.t >= hace7).length;
+  // Cuántas visitas lleva cada aparato (30 días), para el registro
+  const visitasDe = new Map();
+  for (const e of vis) visitasDe.set(e.aparato, (visitasDe.get(e.aparato) || 0) + 1);
+  const prendaTxt = c => { const p = S.prendas.find(x => x.codigo === c); return `${esc(c)}${p ? ' ' + esc(p.descripcion) : ''}`; };
+  let diaAnt = '', filas = '';
+  for (const e of evs.slice(0, visitas.mostrar)) {
+    const d = claveDia(e.t);
+    if (d !== diaAnt) { diaAnt = d; const dd = diasDesde(e.t); filas += `<h3 class="dia-evento">${dd === 0 ? 'Hoy' : dd === 1 ? 'Ayer' : mayus(fLarga.format(e.t))}</h3>`; }
+    const que = e.tipo === 'visita' ? `entró al catálogo${!e.de_tienda && visitasDe.get(e.aparato) > 1 ? ` · lleva ${nf.format(visitasDe.get(e.aparato))} visitas en 30 días` : ''}`
+      : e.tipo === 'quiero' ? `tocó «La quiero» en <b>${prendaTxt(e.codigo)}</b>`
+      : `abrió en grande la foto de ${prendaTxt(e.codigo)}`;
+    filas += `<div class="fila-evento${e.de_tienda ? ' de-tienda' : ''}"><time>${esc(fHora.format(e.t))}</time>
+      <span>${e.tipo === 'quiero' ? ICON.whatsapp + ' ' : ''}Aparato <b>${esc(nombreAparato(e.aparato))}</b>${e.de_tienda ? ' (de la tienda)' : ''} ${que}</span></div>`;
+  }
+  return `
+    <dl class="cifras">
+      <div><dt>Visitas hoy</dt><dd>${nf.format(vis.filter(e => e.t >= hoy0).length)}</dd></div>
+      <div><dt>Visitas en 7 días</dt><dd>${nf.format(vis7.length)}</dd></div>
+      <div><dt>Aparatos distintos (7 días)</dt><dd>${nf.format(dias.size)}</dd></div>
+      <div><dt>Volvieron otro día (7 días)</dt><dd>${nf.format(volvieron)}</dd></div>
+      <div><dt>«La quiero» (7 días)</dt><dd>${nf.format(quiero7)}</dd></div>
+    </dl>
+    <h2>Las más pedidas con «La quiero» (30 días)</h2>
+    ${htmlTopVisitas(topPorPrenda(clientes, 'quiero'), 'Veces que tocaron «La quiero»')}
+    <h2>Las fotos más vistas en grande (30 días)</h2>
+    ${htmlTopVisitas(topPorPrenda(clientes, 'foto'), 'Veces que abrieron la foto')}
+    <h2>Lo último que pasó</h2>
+    ${evs.length ? filas : `<p class="nota">Todavía no hay visitas. Cuando alguien abra el catálogo, aparece aquí.</p>`}
+    ${evs.length > visitas.mostrar ? `<button type="button" class="btn btn-sec mt" data-accion="mas-visitas">Ver más (${nf.format(evs.length - visitas.mostrar)})</button>` : ''}
+    <p class="nota mt">Cada teléfono o computadora aparece con un código de 4 letras, sin nombre ni número: el número de la persona solo le llega si le escribe por WhatsApp. Si alguien borra los datos del navegador o entra desde otro teléfono, cuenta como un aparato nuevo. Lo que se hace desde un aparato con la tienda abierta sale como «de la tienda» y no se cuenta en los números.</p>`;
+}
+function pintarVisitas() {
+  const el = $('#visitas'); if (!el) return;
+  el.innerHTML = htmlVisitas();
+  const b = $('#btnActualizarVisitas');
+  if (b) { b.disabled = visitas.cargando; b.lastChild.textContent = visitas.cargando ? ' Actualizando…' : ' Actualizar'; }
 }
 function htmlAvisoCompraAbierta() {
   const abiertas = S.compras.filter(c => compraAbierta(c) && cuentaCompra(c.id) > 0);
@@ -3754,6 +3849,18 @@ const VISTAS = {
       pintarListaPrendas();
     },
   },
+  visitas: {
+    mount(el) {
+      el.innerHTML = `<h1>Visitas del catálogo</h1>
+        <p class="intro">Quién entra al catálogo, qué prendas piden con «La quiero» y qué fotos abren. Aquí se ven los últimos 30 días.</p>
+        <button type="button" class="btn btn-sec mt" id="btnActualizarVisitas" data-accion="recargar-visitas">${ICON.ojo}<span> Actualizar</span></button>
+        <div id="visitas"></div>`;
+      visitas.mostrar = 60;
+      pintarVisitas();
+      cargarVisitas();
+    },
+    update() { pintarVisitas(); },
+  },
   apartados: {
     mount(el) {
       el.innerHTML = `<h1>Pedidos</h1>
@@ -4015,6 +4122,9 @@ document.addEventListener('click', async e => {
     case 'ver-viejas': Object.assign(filtro, { estado: 'disponible', viejas: true, tipo: '', origen: '', q: '', genero: '', color: '', pmin: 0, pmax: 0, mostrar: 60 }); ir('prendas'); break;
     case 'alternar-viejas': filtro.viejas = !filtro.viejas; if (filtro.viejas) filtro.estado = 'disponible'; filtro.mostrar = 60; VISTAS.prendas.update(); break;
     case 'ver-mas': filtro.mostrar += 60; pintarListaPrendas(); break;
+    // visitas del catálogo
+    case 'recargar-visitas': cargarVisitas(); break;
+    case 'mas-visitas': visitas.mostrar += 60; pintarVisitas(); break;
     // ofertas
     case 'ver-ofertas': {
       // Desde Inicio: si ya hay prendas en oferta, se muestran; si no, se empieza a elegir cuáles poner.
