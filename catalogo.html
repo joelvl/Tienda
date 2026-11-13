@@ -47,6 +47,8 @@ button,input{font:inherit;color:inherit}
 .logo svg{width:26px;height:26px}
 h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
 .sub{margin:2px 0 0;color:var(--tinta-suave);font-size:16px}
+.pagos{margin:0 0 14px;padding:10px 14px;border:1px solid var(--linea);border-radius:12px;background:var(--superficie);color:var(--tinta-suave);font-size:15px}
+.pagos b{color:var(--tinta);font-weight:600}
 .contenido{padding:16px 16px calc(40px + env(safe-area-inset-bottom,0px))}
 .buscar{width:100%;min-height:52px;border:2px solid var(--linea);border-radius:14px;background:var(--superficie);padding:0 16px}
 .buscar:focus{border-color:var(--marca);outline:none}
@@ -96,6 +98,7 @@ h1{margin:0;font-size:24px;line-height:1.2;overflow-wrap:anywhere}
   <div><h1 id="nombre">Catálogo</h1><p class="sub" id="sub">Prendas disponibles</p></div>
 </div></header>
 <main class="contenido">
+  <p class="pagos">Pagos por <b>SINPE Móvil</b> · Envíos a todo el país por <b>Correos de Costa Rica</b></p>
   <input id="q" class="buscar" type="search" autocomplete="off" placeholder="Buscar: blusa, roja, talla M…" aria-label="Buscar prendas">
   <div class="chips" id="tipos" role="group" aria-label="Tipo de prenda"></div>
   <div id="zonaTallas" hidden><p class="etq">Talla</p><div class="chips" id="tallas" role="group" aria-label="Talla"></div></div>
@@ -153,7 +156,7 @@ const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return 
 function enlaceQuiero(p) {
   const tel = telWhatsApp(E.tienda.whatsapp);
   if (!tel) return '';
-  const texto = `¡Hola! Me interesa esta prenda del catálogo: ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ''}, ${col(precioActual(p))}${enOferta(p) ? ' en oferta' : ''} (código ${p.codigo}). ¿Todavía está disponible?`;
+  const texto = `¡Hola! Me interesa esta prenda del catálogo: ${p.descripcion}${p.talla ? `, talla ${p.talla}` : ''}, ${col(precioActual(p))}${enOferta(p) ? ' en oferta' : ''} (código ${p.codigo}). ¿Todavía está disponible?\nLa quiero: con envío / para recoger (deje la que prefiera).`;
   return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
 }
 // Ofertas: el precio con descuento se redondea a los ₡100, igual que en la tienda
